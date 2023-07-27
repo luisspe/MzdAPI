@@ -8,7 +8,7 @@ class Client(models.Model):
     number = models.CharField(max_length=15)
 
     def __str__(self):
-        return self.nombre
+        return self.name
 
 class Event(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
