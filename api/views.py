@@ -1,209 +1,148 @@
-from django.shortcuts import render
+from .serializers import ClientSerializer, EventSerializer
 from rest_framework.views import APIView
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework import permissions
-from .models import Client, Event
-from .serializers import ClientSerializer, EventSerializer
-from django.http import Http404
+from datetime import datetime
+from uuid import uuid4
+import uuid
+import boto3
 
-class ClientCreateAPiView(generics.CreateAPIView):
+# Configuración de DynamoDB
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+client_table = dynamodb.Table('clients')
+event_table = dynamodb.Table('events')
 
-    serializer_class = ClientSerializer
 
-    def create(self, request, *args, **kwargs):
-        # Procesar los datos enviados por la plataforma y guardar el nuevo cliente
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+class ListClientsView(APIView):
+    def get(self, request):
+        response = client_table.scan()
+        clients = response.get('Items', [])
+        return Response(clients)
 
-        # Respuesta personalizada
-        response_data = {
-            "message": "client created.",
-            "data": serializer.data
-        }
 
-        return Response(response_data, status=status.HTTP_201_CREATED)
+class ClientCreateAPiView(APIView):
+    def post(self, request):
+        serializer = ClientSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                client_table.put_item(Item=serializer.validated_data)
+                return Response({"message": "Cliente creado exitosamente."}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class ClientDetailView(generics.RetrieveAPIView):
-    serializer_class = ClientSerializer
 
-    def get_object(self):
-        # Obtener un cliente específico de la base de datos
-        cliente_id = self.kwargs['pk']
+class ClientDetailView(APIView):
+
+    def get(self, request, client_id):
+        response = client_table.get_item(Key={'client_id': client_id})
+        client = response.get('Item', None)
+        if client:
+            return Response(client)
+        return Response({"error": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, client_id):
+        # Recuperamos el cliente actual para confirmar que existe
+        response = client_table.get_item(Key={'client_id': client_id})
+        client = response.get('Item', None)
+        if not client:
+            return Response({"error": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fusionamos la data actual con la nueva data
+        update_data = {**client, **request.data}
+
+        serializer = ClientSerializer(data=update_data)
+        if serializer.is_valid():
+            try:
+                client_table.put_item(Item=serializer.validated_data)
+                return Response({"message": "Cliente actualizado exitosamente."}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, client_id):
+        # Verificamos que el cliente exista antes de intentar eliminarlo
+        response = client_table.get_item(Key={'client_id': client_id})
+        client = response.get('Item', None)
+        if not client:
+            return Response({"error": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         try:
-            client = Client.objects.get(pk=cliente_id)
-        except Client.DoesNotExist:
-            raise Http404("El cliente no existe.")
-        return client
+            client_table.delete_item(Key={'client_id': client_id})
+            return Response({"message": "Cliente eliminado exitosamente."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def retrieve(self, request, *args, **kwargs):
-        # Obtener el cliente y su representación serializada
-        client = self.get_object()
-        serializer = self.get_serializer(client)
 
-        # Respuesta personalizada
-        response_data = {
-            "message": "Client found.",
-            "data": serializer.data
-        }
+class ClientDeleteAPIView(APIView):
+    def delete(self, request, client_id):
+        client_table.delete_item(Key={'id': client_id})
+        return Response({"message": "Cliente eliminado exitosamente."}, status=status.HTTP_200_OK)
 
-        return Response(response_data, status=status.HTTP_200_OK)
-   
-class ClientUpdateView(generics.UpdateAPIView):
-    serializer_class = ClientSerializer
 
-    def get_object(self):
-        # Obtener el cliente existente
-        cliente_id = self.kwargs['pk']
-        try:
-            client = Client.objects.get(pk=cliente_id)
-        except Client.DoesNotExist:
-            raise Http404("Client doesn't exist.")
-        return client
+class EventListApiView(APIView):
+    def get(self, request):
+        response = event_table.scan()
+        events = response.get('Items', [])
+        return Response(events)
 
-    def update(self, request, *args, **kwargs):
-        # Obtener el cliente existente
-        instance = self.get_object()
 
-        # Procesar los datos enviados por el cliente y actualizar el cliente
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+class EventCreateAPIView(APIView):
+    def post(self, request):
+        # Genera un UUID si no viene en el request
+        if 'session_id' not in request.data:
+            request.data['session_id'] = str(uuid4())  # Convertir UUID a string aquí
+        if 'event_id' not in request.data:
+            request.data['event_id'] = str(uuid4())  # Convertir UUID a string aquí
 
-        # Respuesta personalizada
-        response_data = {
-            "message": "El client has been updated.",
-            "data": serializer.data
-        }
+        serializer = EventSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                event_data = serializer.validated_data
+                # Convertir el timestamp a formato ISO 8601
+                event_data['timestamp'] = datetime.now().isoformat()  # Añadir timestamp y convertir a string
 
-        return Response(response_data, status=status.HTTP_200_OK)
+                # Convertir event_id y session_id a strings si son de tipo UUID
+                if isinstance(event_data.get('event_id'), uuid.UUID):
+                    event_data['event_id'] = str(event_data['event_id'])
+                if isinstance(event_data.get('session_id'), uuid.UUID):
+                    event_data['session_id'] = str(event_data['session_id'])
+
+                event_table.put_item(Item=event_data)
+                return Response({"message": "Evento creado exitosamente."}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class EventDetailView(APIView):
+    def get(self, request, event_id, session_id):
+        response = event_table.get_item(Key={'event_id': str(event_id), 'session_id': str(session_id)})
+        event = response.get('Item', None)
+        if event:
+            return Response(event)
+        return Response({"error": "Evento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
     
+    def put(self, request, event_id, session_id):
+    # Obtener el evento
+        response = event_table.get_item(Key={'event_id': str(event_id), 'session_id': str(session_id)})
+        event = response.get('Item', None)
 
-class ClientDeleteView(generics.DestroyAPIView):
-    serializer_class = ClientSerializer
+        if not event:
+            return Response({"error": "Evento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
-    def get_object(self):
-        # Obtener el cliente existente
-        cliente_id = self.kwargs['pk']
-        try:
-            client = Client.objects.get(pk=cliente_id)
-        except Client.DoesNotExist:
-            raise Http404("Client doesn't exist.")
-        return client
+        # Actualizar el evento
+        for key, value in request.data.items():
+            event[key] = value
 
-    def destroy(self, request, *args, **kwargs):
-        # Obtener el cliente existente
-        client = self.get_object()
+        # Guardar el evento actualizado
+        event_table.put_item(Item=event)
 
-        #Eliminar Cliente
-        client.delete()
-
-        # Respuesta personalizada
-        response_data = {
-            "message": "client has been deleted.",
-            
-        }
-
-        return Response(response_data, status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Evento actualizado exitosamente."}, status=status.HTTP_200_OK)
     
+    def delete(self, request, event_id, session_id):
+    # Intentar eliminar el evento. Si el evento no existe, DynamoDB no arrojará un error.
+        event_table.delete_item(Key={'event_id': str(event_id), 'session_id': str(session_id)})
 
-class EventCreateAPIView(generics.CreateAPIView):
-    serializer_class = EventSerializer
-
-    def create(self, request, *args, **kwargs):
-        # Procesar los datos enviados por la plataforma y guardar el nuevo evento
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        # Respuesta personalizada
-        response_data = {
-            "message": "Event created.",
-            "data": serializer.data
-        }
-
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        return Response({"message": "Evento eliminado exitosamente."}, status=status.HTTP_204_NO_CONTENT)
 
 
-class EventDetailView(generics.RetrieveAPIView):
-    serializer_class = EventSerializer
 
-    def get_object(self):
-        # Obtener un evento específico de la base de datos
-        event_id = self.kwargs['pk']
-        try:
-            event = Event.objects.get(pk=event_id)
-        except Event.DoesNotExist:
-            raise Http404("El evento no existe.")
-        return event
-
-    def retrieve(self, request, *args, **kwargs):
-        # Obtener el evento y su representación serializada
-        event = self.get_object()
-        serializer = self.get_serializer(event)
-
-        # Respuesta personalizada
-        response_data = {
-            "message": "Event found.",
-            "data": serializer.data
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
-
-
-class EventUpdateView(generics.UpdateAPIView):
-    serializer_class = EventSerializer
-
-    def get_object(self):
-        # Obtener el evento existente
-        event_id = self.kwargs['pk']
-        try:
-            event = Event.objects.get(pk=event_id)
-        except Event.DoesNotExist:
-            raise Http404("Event doesn't exist.")
-        return event
-
-    def update(self, request, *args, **kwargs):
-        # Obtener el evento existente
-        instance = self.get_object()
-
-        # Procesar los datos enviados por el cliente y actualizar el evento
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        # Respuesta personalizada
-        response_data = {
-            "message": "El evento has been updated.",
-            "data": serializer.data
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
-
-
-class EventDeleteView(generics.DestroyAPIView):
-    serializer_class = EventSerializer
-
-    def get_object(self):
-        # Obtener el evento existente
-        event_id = self.kwargs['pk']
-        try:
-            event = Event.objects.get(pk=event_id)
-        except Event.DoesNotExist:
-            raise Http404("Event doesn't exist.")
-        return event
-
-    def destroy(self, request, *args, **kwargs):
-        # Obtener el evento existente
-        event = self.get_object()
-
-        # Eliminar evento
-        event.delete()
-
-        # Respuesta personalizada
-        response_data = {
-            "message": "Event has been deleted.",
-        }
-
-        return Response(response_data, status=status.HTTP_204_NO_CONTENT)
