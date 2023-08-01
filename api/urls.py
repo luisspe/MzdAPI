@@ -1,11 +1,23 @@
 from django.urls import path
-from .views import ClientCreateAPiView, ClientUpdateView, ClientDetailView, ClientDeleteView,EventCreateAPIView
+from .views import (
+    ListClientsView, 
+    ClientCreateAPiView, 
+    ClientDetailView,
+    EventListApiView,
+    EventCreateAPIView,
+    EventDetailView,
+    
+)
 
 urlpatterns = [
-  path('clients/', ClientCreateAPiView.as_view(), name='client-list-create'),
-  path('client/<int:pk>/', ClientDetailView.as_view(), name='client-detail'),
-  path('client/<int:pk>/update/', ClientUpdateView.as_view(), name='client-update'),
-  path('client/<int:pk>/delete/', ClientDeleteView.as_view(), name='client-delete'),
-  # Vista para crear un nuevo evento
-  path('events/', EventCreateAPIView.as_view(), name='event-create'),
+    # Rutas para clientes
+    path('clients/', ListClientsView.as_view(), name='list_clients'),
+    path('clients/create/', ClientCreateAPiView.as_view(), name='create_client'),
+    path('clients/<str:client_id>/', ClientDetailView.as_view(), name='detail_client'),
+
+    # Rutas para eventos
+    path('events/', EventListApiView.as_view(), name='list_events'),
+    path('events/create/', EventCreateAPIView.as_view(), name='create_event'),
+    path('events/<str:event_id>/<str:session_id>/', EventDetailView.as_view(), name='detail_event'),
+  
 ]
