@@ -1,4 +1,5 @@
 from .serializers import ClientSerializer, EventSerializer
+from boto3.dynamodb.conditions import Key
 from rest_framework.views import APIView
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -25,11 +26,35 @@ class ClientCreateAPiView(APIView):
         serializer = ClientSerializer(data=request.data)
         if serializer.is_valid():
             try:
+                # Crear el cliente en la tabla
                 client_table.put_item(Item=serializer.validated_data)
+                
+                # Obtener el client_id del cliente recién creado
+                client_id = serializer.validated_data.get('client_id')
+                
+                # Obtener el session_id desde el request
+                session_id = request.data.get('session_id')
+                
+                # Si el session_id está presente, actualizamos los eventos
+                if session_id:
+                    # Realiza un query para obtener todos los eventos con ese session_id
+                    response = event_table.query(
+                        IndexName='session_id-index',
+                        KeyConditionExpression=Key('session_id').eq(session_id)
+                    )
+                    events = response.get('Items', [])
+
+                    # Actualiza cada evento para añadir el client_id
+                    for event in events:
+                        event['client_id'] = client_id
+                        event_table.put_item(Item=event)
+
                 return Response({"message": "Cliente creado exitosamente."}, status=status.HTTP_201_CREATED)
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class ClientDetailView(APIView):
@@ -71,12 +96,6 @@ class ClientDetailView(APIView):
             return Response({"message": "Cliente eliminado exitosamente."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class ClientDeleteAPIView(APIView):
-    def delete(self, request, client_id):
-        client_table.delete_item(Key={'id': client_id})
-        return Response({"message": "Cliente eliminado exitosamente."}, status=status.HTTP_200_OK)
 
 
 class EventListApiView(APIView):
@@ -143,6 +162,9 @@ class EventDetailView(APIView):
         event_table.delete_item(Key={'event_id': str(event_id), 'session_id': str(session_id)})
 
         return Response({"message": "Evento eliminado exitosamente."}, status=status.HTTP_204_NO_CONTENT)
+    
+
+
 
 
 
