@@ -6,7 +6,8 @@ from .views import (
     EventListApiView,
     EventCreateAPIView,
     EventDetailView,
-    
+    ClientEventsView,
+    SessionEventsApiView,
     
 )
 
@@ -22,7 +23,8 @@ urlpatterns = [
     path('events/<str:event_id>/<str:session_id>/', EventDetailView.as_view(), name='detail_event'),
 
     # Rutas para clientes - eventos 
-    
+    path('client/<str:client_id>/events/', ClientEventsView.as_view(), name='client-events'),
+    path('session/<str:session_id>/events/', SessionEventsApiView.as_view(), name='session-events'),
 
   
 ]

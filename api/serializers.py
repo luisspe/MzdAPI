@@ -25,3 +25,5 @@ class EventSerializer(serializers.Serializer):
     event_type = serializers.CharField(max_length=50) 
     event_data = serializers.JSONField()
     timestamp = serializers.DateTimeField(required=False)
+
+
