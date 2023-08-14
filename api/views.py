@@ -5,9 +5,19 @@ from rest_framework.views import APIView
 from rest_framework import generics, status
 from rest_framework.response import Response
 from datetime import datetime
-from uuid import uuid4
+from uuid import uuid4, UUID
+from botocore.exceptions import ClientError
 import uuid
 import boto3
+
+
+# Función para validar si un valor es un UUID válido
+def is_valid_uuid(val):
+    try:
+        UUID(str(val))
+        return True
+    except ValueError:
+        return False
 
 # Configuración inicial de DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
@@ -17,10 +27,31 @@ event_table = dynamodb.Table('events')
 # Vista para listar todos los clientes
 class ListClientsView(APIView):
     def get(self, request):
-        # Realizar un escaneo completo de la tabla de clientes
-        response = client_table.scan() # lo mismo que eventos, no realiar a menos que sea necesario
-        clients = response.get('Items', [])
-        return Response(clients)
+        # Obtener el token de paginación si se proporciona
+        last_evaluated_key = request.GET.get('last_evaluated_key')
+
+        # Configuración inicial para la consulta
+        scan_kwargs = {
+            'Limit': 10  # Limita a 10 registros por página, puedes ajustar esto según tus necesidades
+        }
+
+        # Si hay un token de paginación, úsalo
+        if last_evaluated_key:
+            scan_kwargs['ExclusiveStartKey'] = {'client_id': last_evaluated_key}
+
+        # Realizar un escaneo de la tabla de clientes con paginación
+        response = client_table.scan(**scan_kwargs)
+
+        # Obtener el token de paginación para la próxima página
+        next_page_token = response.get('LastEvaluatedKey')
+
+        # Preparar la respuesta
+        data = {
+            'clients': response.get('Items', []),
+            'next_page_token': next_page_token
+        }
+
+        return Response(data)
 
 # Vista para crear un nuevo cliente
 class ClientCreateAPiView(APIView):
@@ -53,6 +84,20 @@ class ClientCreateAPiView(APIView):
                         event_table.put_item(Item=event)
 
                 return Response({"message": "Cliente creado exitosamente."}, status=status.HTTP_201_CREATED)
+            
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code == 'ProvisionedThroughputExceededException':
+                    return Response({"error": "Se ha excedido la capacidad provisionada. Por favor, inténtalo de nuevo más tarde."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                elif error_code == 'ResourceNotFoundException':
+                    return Response({"error": "La tabla no fue encontrada."}, status=status.HTTP_404_NOT_FOUND)
+                elif error_code == 'ConditionalCheckFailedException':
+                    return Response({"error": "La condición especificada no se cumplió."}, status=status.HTTP_400_BAD_REQUEST)
+                elif error_code == 'ValidationException':
+                    return Response({"error": "Hubo un problema con los datos de entrada."}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    return Response({"error": "Ocurrió un error al acceder a DynamoDB."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -97,20 +142,34 @@ class EventListApiView(APIView):
 class EventCreateAPIView(APIView):
     def post(self, request):
         # Generar UUIDs para session_id y event_id si no se proporcionan
-        if 'session_id' not in request.data:
-            request.data['session_id'] = str(uuid4())
-        if 'event_id' not in request.data:
-            request.data['event_id'] = str(uuid4())
-        serializer = EventSerializer(data=request.data)
-        if serializer.is_valid():
-            event_data = serializer.validated_data
-            event_data['timestamp'] = datetime.now().isoformat()
-            if isinstance(event_data.get('event_id'), uuid.UUID):
-                event_data['event_id'] = str(event_data['event_id'])
-            if isinstance(event_data.get('session_id'), uuid.UUID):
-                event_data['session_id'] = str(event_data['session_id'])
-            event_table.put_item(Item=event_data)
-            return Response({"message": "Evento creado exitosamente."}, status=status.HTTP_201_CREATED)
+        try:
+            if 'session_id' not in request.data:
+                request.data['session_id'] = str(uuid4())
+            if 'event_id' not in request.data:
+                request.data['event_id'] = str(uuid4())
+            serializer = EventSerializer(data=request.data)
+            if serializer.is_valid():
+                event_data = serializer.validated_data
+                event_data['timestamp'] = datetime.now().isoformat()
+                if isinstance(event_data.get('event_id'), uuid.UUID):
+                    event_data['event_id'] = str(event_data['event_id'])
+                if isinstance(event_data.get('session_id'), uuid.UUID):
+                    event_data['session_id'] = str(event_data['session_id'])
+                event_table.put_item(Item=event_data)
+                return Response({"message": "Evento creado exitosamente."}, status=status.HTTP_201_CREATED)
+        
+        except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code == 'ProvisionedThroughputExceededException':
+                    return Response({"error": "Se ha excedido la capacidad provisionada. Por favor, inténtalo de nuevo más tarde."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                elif error_code == 'ResourceNotFoundException':
+                    return Response({"error": "La tabla no fue encontrada."}, status=status.HTTP_404_NOT_FOUND)
+                elif error_code == 'ConditionalCheckFailedException':
+                    return Response({"error": "La condición especificada no se cumplió."}, status=status.HTTP_400_BAD_REQUEST)
+                elif error_code == 'ValidationException':
+                    return Response({"error": "Hubo un problema con los datos de entrada."}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    return Response({"error": "Ocurrió un error al acceder a DynamoDB."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Vista para obtener, actualizar o eliminar un evento específico
@@ -145,18 +204,33 @@ class EventDetailView(APIView):
 
 class ClientEventsView(APIView):
     def get(self, request, client_id):
-        # Realiza una consulta en la tabla de eventos usando el GSI de client_id
-        response = event_table.query(
-            IndexName='client_id-index',  # Asegúrate de que este sea el nombre correcto de tu GSI
-            KeyConditionExpression=Key('client_id').eq(client_id)
-        )
+        # Obtener el token de paginación si se proporciona
+        last_evaluated_key = request.GET.get('last_evaluated_key')
         
-        events = response.get('Items', [])
+        # Configuración inicial para la consulta
+        query_kwargs = {
+            'IndexName': 'client_id-index',
+            'KeyConditionExpression': Key('client_id').eq(client_id),
+            'Limit': 10  # Limita a 10 registros por página
+        }
+
+        # Si hay un token de paginación, úsalo
+        if last_evaluated_key:
+            query_kwargs['ExclusiveStartKey'] = {'client_id': client_id, 'event_id': last_evaluated_key}
+
+        # Realizar la consulta con paginación
+        response = event_table.query(**query_kwargs)
         
-        if not events:
-            return Response({"error": "No se encontraron eventos para el cliente."}, status=status.HTTP_404_NOT_FOUND)
+        # Obtener el token de paginación para la próxima página
+        next_page_token = response.get('LastEvaluatedKey', {}).get('event_id')
         
-        return Response(events)
+        # Preparar la respuesta
+        data = {
+            'events': response.get('Items', []),
+            'next_page_token': next_page_token
+        }
+        
+        return Response(data)
     
 class SessionEventsApiView(APIView):
     def get(self, request, session_id):
