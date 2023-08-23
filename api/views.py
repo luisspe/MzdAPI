@@ -20,7 +20,7 @@ def is_valid_uuid(val):
         return False
 
 # Configuración inicial de DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 client_table = dynamodb.Table('clients')
 event_table = dynamodb.Table('events')
 
