@@ -246,6 +246,25 @@ class SessionEventsApiView(APIView):
         
         return Response(events)
 
+class TodaysVisitsApiView(APIView):
+    def get(self, request):
+        today = datetime.now().date().isoformat()
+
+        response = event_table.query(
+            IndexName='event_type-timestamp-index',
+            KeyConditionExpression='event_type = :etype AND begins_with(#ts, :today)',
+            ExpressionAttributeNames={
+                '#ts': 'timestamp',
+            },
+            ExpressionAttributeValues={
+                ':today': today,
+                ':etype': 'visit',
+            }
+        )
+
+        events = response.get('Items', [])
+        return Response(events)
+
 
 
 
