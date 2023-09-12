@@ -20,7 +20,7 @@ def is_valid_uuid(val):
         return False
 
 # Configuración inicial de DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 client_table = dynamodb.Table('clients')
 event_table = dynamodb.Table('events')
 
@@ -244,6 +244,25 @@ class SessionEventsApiView(APIView):
         if not events:
             return Response({"error": "No se encontraron eventos para la sesión proporcionada."}, status=status.HTTP_404_NOT_FOUND)
         
+        return Response(events)
+
+class TodaysVisitsApiView(APIView):
+    def get(self, request):
+        today = datetime.now().date().isoformat()
+
+        response = event_table.query(
+            IndexName='event_type-timestamp-index',
+            KeyConditionExpression='event_type = :etype AND begins_with(#ts, :today)',
+            ExpressionAttributeNames={
+                '#ts': 'timestamp',
+            },
+            ExpressionAttributeValues={
+                ':today': today,
+                ':etype': 'visit',
+            }
+        )
+
+        events = response.get('Items', [])
         return Response(events)
 
 
