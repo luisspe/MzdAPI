@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-+@%*j@5#fvp6#a(z49q-h@sj-vs&vdz+fmu&^@vinj_drp1g39
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['atnrraqss2.execute-api.us-east-1.amazonaws.com']
+ALLOWED_HOSTS = ['atnrraqss2.execute-api.us-east-1.amazonaws.com', '*']
 
 
 # Application definition
@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',
     'api',
 ]
 
@@ -53,7 +54,41 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    'corsheaders.middleware.CorsMiddleware',
+    
+    
 ]
+
+#CORS_ALLOWED_ORIGINS = [
+  #  ""
+ #   "http://127.0.0.1:8000"
+#]
+
+CORS_ALLOW_ALL_ORIGINS = True #cambiar a a arriba cuando se pase a prod
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-api-key',
+]
+
 
 ROOT_URLCONF = 'apiMZD.urls'
 
