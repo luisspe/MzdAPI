@@ -9,6 +9,7 @@ from uuid import uuid4, UUID
 from botocore.exceptions import ClientError
 import uuid
 import boto3
+import pytz
 
 
 # Función para validar si un valor es un UUID válido
@@ -129,6 +130,29 @@ class ClientDetailView(APIView):
         # Eliminar un cliente específico por su client_id
         client_table.delete_item(Key={'client_id': client_id})
         return Response({"message": "Cliente eliminado exitosamente."}, status=status.HTTP_200_OK)
+    
+
+class ClientQueryByEmailAPIView(APIView):
+    def get(self, request, email):
+        try:
+            # Realizar la consulta utilizando el índice secundario del correo electrónico
+            response = client_table.query(
+                IndexName='email-index',  # Asumiendo que tienes un índice secundario llamado 'email-index'
+                KeyConditionExpression='email = :email_val',
+                ExpressionAttributeValues={
+                    ':email_val': email
+                }
+            )
+            
+            clients = response.get('Items', [])
+            
+            if len(clients) > 0:
+                return Response(clients[0], status=status.HTTP_200_OK)  # Devuelve el primer cliente que coincida
+            else:
+                return Response({"message": "No se encontraron clientes con ese correo electrónico"}, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Vista para listar todos los eventos
 class EventListApiView(APIView):
@@ -150,7 +174,9 @@ class EventCreateAPIView(APIView):
             serializer = EventSerializer(data=request.data)
             if serializer.is_valid():
                 event_data = serializer.validated_data
-                event_data['timestamp'] = datetime.now().isoformat()
+                mexico_tz = pytz.timezone('America/Mexico_City')
+                mexico_time = datetime.now(mexico_tz)
+                event_data['timestamp'] = mexico_time.strftime('%Y-%m-%d %H:%M:%S %Z%z')
                 if isinstance(event_data.get('event_id'), uuid.UUID):
                     event_data['event_id'] = str(event_data['event_id'])
                 if isinstance(event_data.get('session_id'), uuid.UUID):
@@ -248,7 +274,11 @@ class SessionEventsApiView(APIView):
 
 class TodaysVisitsApiView(APIView):
     def get(self, request):
-        today = datetime.now().date().isoformat()
+         # Establecer la zona horaria para la Ciudad de México
+        mexico_tz = pytz.timezone('America/Mexico_City')
+        # Obtener la fecha actual en esa zona horaria
+        today = datetime.now(mexico_tz).strftime('%Y-%m-%d')
+        
 
         response = event_table.query(
             IndexName='event_type-timestamp-index',
@@ -264,6 +294,9 @@ class TodaysVisitsApiView(APIView):
 
         events = response.get('Items', [])
         return Response(events)
+
+
+
 
 
 
