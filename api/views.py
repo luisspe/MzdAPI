@@ -167,6 +167,7 @@ class EventCreateAPIView(APIView):
     def post(self, request):
         # Generar UUIDs para session_id y event_id si no se proporcionan
         try:
+            
             if 'session_id' not in request.data:
                 request.data['session_id'] = str(uuid4())
             if 'event_id' not in request.data:
@@ -288,7 +289,7 @@ class TodaysVisitsApiView(APIView):
             },
             ExpressionAttributeValues={
                 ':today': today,
-                ':etype': 'visit',
+                ':etype': 'visit_registration',
             }
         )
 
