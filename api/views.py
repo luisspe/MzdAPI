@@ -33,7 +33,7 @@ class ListClientsView(APIView):
 
         # Configuración inicial para la consulta
         scan_kwargs = {
-            'Limit': 10  # Limita a 10 registros por página, puedes ajustar esto según tus necesidades
+            'Limit': 100  # Limita a 10 registros por página, puedes ajustar esto según tus necesidades
         }
 
         # Si hay un token de paginación, úsalo
@@ -238,7 +238,7 @@ class ClientEventsView(APIView):
         query_kwargs = {
             'IndexName': 'client_id-index',
             'KeyConditionExpression': Key('client_id').eq(client_id),
-            'Limit': 10  # Limita a 10 registros por página
+            'Limit': 100  # Limita a 10 registros por página
         }
 
         # Si hay un token de paginación, úsalo
