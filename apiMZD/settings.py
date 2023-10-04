@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,12 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-+@%*j@5#fvp6#a(z49q-h@sj-vs&vdz+fmu&^@vinj_drp1g39'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['atnrraqss2.execute-api.us-east-1.amazonaws.com', '*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=lambda v: [s.strip() for s in v.split(',')])
 
 
 # Application definition
@@ -66,7 +67,7 @@ MIDDLEWARE = [
  #   "http://127.0.0.1:8000"
 #]
 
-CORS_ALLOW_ALL_ORIGINS = True #cambiar a a arriba cuando se pase a prod
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool) #cambiar a a arriba cuando se pase a prod
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -118,7 +119,7 @@ WSGI_APPLICATION = 'apiMZD.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / config('DATABASE_NAME', default='db.sqlite3'),
     }
 }
 

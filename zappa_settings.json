@@ -1,0 +1,12 @@
+{
+    "dev": {
+        "aws_region": "us-east-1",
+        "django_settings": "apiMZD.settings",
+        "profile_name": "default",
+        "project_name": "apimzd",
+        "runtime": "python3.10",
+        "s3_bucket": "zappa-ue8sy8lal"
+    }
+    
+
+}
