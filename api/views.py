@@ -167,9 +167,9 @@ class EventCreateAPIView(APIView):
     def post(self, request):
         # Generar UUIDs para session_id y event_id si no se proporcionan
         try:
-            
-            if 'session_id' not in request.data:
-                request.data['session_id'] = str(uuid4())
+            if 'event_source' in request.data and request.data['event_source'] != 'physical_location':
+                if 'session_id' not in request.data:
+                    request.data['session_id'] = str(uuid4())
             if 'event_id' not in request.data:
                 request.data['event_id'] = str(uuid4())
             serializer = EventSerializer(data=request.data)
@@ -180,8 +180,13 @@ class EventCreateAPIView(APIView):
                 event_data['timestamp'] = mexico_time.strftime('%Y-%m-%d %H:%M:%S %Z%z')
                 if isinstance(event_data.get('event_id'), uuid.UUID):
                     event_data['event_id'] = str(event_data['event_id'])
-                if isinstance(event_data.get('session_id'), uuid.UUID):
+
+
+                # Convertir session_id a string solo si está presente y es una instancia de uuid.UUID
+                if event_data.get('session_id') and isinstance(event_data.get('session_id'), uuid.UUID):
                     event_data['session_id'] = str(event_data['session_id'])
+
+
                 event_table.put_item(Item=event_data)
                 return Response({"message": "Evento creado exitosamente."}, status=status.HTTP_201_CREATED)
         
