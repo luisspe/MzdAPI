@@ -5,7 +5,14 @@
         "profile_name": "default",
         "project_name": "apimzd",
         "runtime": "python3.10",
-        "s3_bucket": "zappa-ue8sy8lal"
+        "s3_bucket": "zappa-ue8sy8lal",
+        "environment_variables": {
+            "SECRET_KEY": "django-insecure-+@%*j@5#fvp6#a(z49q-h@sj-vs&vdz+fmu&^@vinj_drp1g39",
+            "DEBUG": "True",
+            "ALLOWED_HOSTS": "atnrraqss2.execute-api.us-east-1.amazonaws.com,*",
+            "CORS_ALLOW_ALL_ORIGINS": "True",
+            "DATABASE_NAME": "db.sqlite3"
+        }
     }
     
 

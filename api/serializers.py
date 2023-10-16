@@ -23,6 +23,7 @@ class UUIDFieldToString(serializers.Field):
 class EventSerializer(serializers.Serializer):
     event_id = UUIDFieldToString(required=False)
     session_id = UUIDFieldToString(required=False)
+    event_source = serializers.CharField(required=False)
     client_id = serializers.CharField(max_length=40, required=False)
     event_type = serializers.CharField(max_length=50) 
     event_data = serializers.JSONField()
