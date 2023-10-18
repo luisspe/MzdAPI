@@ -28,58 +28,83 @@ event_table = dynamodb.Table('events')
 # Vista para listar todos los clientes
 class ListClientsView(APIView):
     def get(self, request):
-        # Obtener el token de paginación si se proporciona
+        """
+        Handles GET requests to list all clients with pagination.
+
+        Query Parameters:
+        - last_evaluated_key: The last client ID from the previous page; used for pagination.
+
+        Responses:
+        - 200 OK: Returns a page of clients along with a token for the next page.
+        - 500 Internal Server Error: Unexpected server error.
+        """
+        # Obtain pagination token if provided
         last_evaluated_key = request.GET.get('last_evaluated_key')
 
-        # Configuración inicial para la consulta
+        # Initial configuration for the query
         scan_kwargs = {
-            'Limit': 100  # Limita a 10 registros por página, puedes ajustar esto según tus necesidades
+            'Limit': 100  # Limit to 100 records per page, adjust as needed
         }
 
-        # Si hay un token de paginación, úsalo
+        # Use pagination token if provided
         if last_evaluated_key:
             scan_kwargs['ExclusiveStartKey'] = {'client_id': last_evaluated_key}
 
-        # Realizar un escaneo de la tabla de clientes con paginación
-        response = client_table.scan(**scan_kwargs)
+        try:
+            # Perform a paginated scan on the clients table
+            response = client_table.scan(**scan_kwargs)
 
-        # Obtener el token de paginación para la próxima página
-        next_page_token = response.get('LastEvaluatedKey')
+            # Obtain the pagination token for the next page
+            next_page_token = response.get('LastEvaluatedKey')
 
-        # Preparar la respuesta
-        data = {
-            'clients': response.get('Items', []),
-            'next_page_token': next_page_token
-        }
+            # Prepare the response data
+            data = {
+                'clients': response.get('Items', []),
+                'next_page_token': next_page_token
+            }
 
-        return Response(data)
+            return Response(data)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Vista para crear un nuevo cliente
 class ClientCreateAPiView(APIView):
     def post(self, request):
-        # Serializar los datos recibidos
+        """
+        Handles POST requests to create a new client.
+
+        Request Body:
+        - All fields required by the ClientSerializer.
+
+        Responses:
+        - 201 Created: Client was successfully created.
+        - 400 Bad Request: Invalid data was supplied.
+        - 404 Not Found: The table was not found.
+        - 500 Internal Server Error: Unexpected server error.
+        """
         serializer = ClientSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                # Crear el cliente en la tabla
+                # Create the client in the table
                 client_table.put_item(Item=serializer.validated_data)
                 
-                # Obtener el client_id del cliente recién creado
+                # Get the client_id of the newly created client
                 client_id = serializer.validated_data.get('client_id')
                 
-                # Obtener el session_id desde el request
+                # Get the session_id from the request
                 session_id = request.data.get('session_id')
                 
-                # Si el session_id está presente, actualizamos los eventos
+                # If the session_id is present, update the events
                 if session_id:
-                    # Realiza un query para obtener todos los eventos con ese session_id
+                    # Query to get all events with that session_id
                     response = event_table.query(
                         IndexName='session_id-index',
                         KeyConditionExpression=Key('session_id').eq(session_id)
                     )
                     events = response.get('Items', [])
 
-                    # Actualiza cada evento para añadir el client_id
+                    # Update each event to add the client_id
                     for event in events:
                         event['client_id'] = client_id
                         event_table.put_item(Item=event)
@@ -88,43 +113,89 @@ class ClientCreateAPiView(APIView):
             
             except ClientError as e:
                 error_code = e.response['Error']['Code']
-                if error_code == 'ProvisionedThroughputExceededException':
-                    return Response({"error": "Se ha excedido la capacidad provisionada. Por favor, inténtalo de nuevo más tarde."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-                elif error_code == 'ResourceNotFoundException':
-                    return Response({"error": "La tabla no fue encontrada."}, status=status.HTTP_404_NOT_FOUND)
-                elif error_code == 'ConditionalCheckFailedException':
-                    return Response({"error": "La condición especificada no se cumplió."}, status=status.HTTP_400_BAD_REQUEST)
-                elif error_code == 'ValidationException':
-                    return Response({"error": "Hubo un problema con los datos de entrada."}, status=status.HTTP_400_BAD_REQUEST)
-                else:
-                    return Response({"error": "Ocurrió un error al acceder a DynamoDB."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+                return self.handle_client_error(error_code)
+            
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# Vista para obtener, actualizar o eliminar un cliente específico
+    def handle_client_error(self, error_code):
+        """
+        Handles known client errors from DynamoDB.
+
+        Arguments:
+        - error_code: The error code string from DynamoDB.
+
+        Returns:
+        - A Django Response object with a suitable error message and status code.
+        """
+        error_messages = {
+            'ProvisionedThroughputExceededException': ("Se ha excedido la capacidad provisionada. "
+                                                       "Por favor, inténtalo de nuevo más tarde."),
+            'ResourceNotFoundException': "La tabla no fue encontrada.",
+            'ConditionalCheckFailedException': "La condición especificada no se cumplió.",
+            'ValidationException': "Hubo un problema con los datos de entrada."
+        }
+        error_message = error_messages.get(error_code, "Ocurrió un error al acceder a DynamoDB.")
+        status_codes = {
+            'ProvisionedThroughputExceededException': status.HTTP_503_SERVICE_UNAVAILABLE,
+            'ResourceNotFoundException': status.HTTP_404_NOT_FOUND,
+            'ConditionalCheckFailedException': status.HTTP_400_BAD_REQUEST,
+            'ValidationException': status.HTTP_400_BAD_REQUEST
+        }
+        status_code = status_codes.get(error_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": error_message}, status=status_code)
+    
+
+
 class ClientDetailView(APIView):
+    """
+    Handles the retrieval, update, and deletion of a specific client based on client_id.
+    """
+
     def get(self, request, client_id):
-        # Obtener un cliente específico por su client_id
-        response = client_table.get_item(Key={'client_id': client_id})
-        client = response.get('Item', None)
+        """
+        Retrieves a specific client by client_id.
+
+        Responses:
+        - 200 OK: Client was successfully retrieved.
+        - 404 Not Found: Client was not found.
+        """
+        client = self.get_client(client_id)
         if client:
             return Response(client)
         return Response({"error": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, client_id):
-        # Actualizar un cliente específico por su client_id
-        response = client_table.get_item(Key={'client_id': client_id})
-        client = response.get('Item', None)
+        """
+        Updates a specific client by client_id with the provided data.
+
+        Responses:
+        - 200 OK: Client was successfully updated.
+        - 400 Bad Request: Invalid data was supplied.
+        - 404 Not Found: Client was not found.
+        """
+        client = self.get_client(client_id)
         if not client:
             return Response({"error": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
         update_data = {**client, **request.data}
         serializer = ClientSerializer(data=update_data)
         if serializer.is_valid():
             client_table.put_item(Item=serializer.validated_data)
             return Response({"message": "Cliente actualizado exitosamente."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_client(self, client_id):
+        """
+        Helper method to retrieve a client by client_id.
+
+        Returns:
+        - The client data if found, otherwise None.
+        """
+        response = client_table.get_item(Key={'client_id': client_id})
+        return response.get('Item', None)
 
     def delete(self, request, client_id):
         # Eliminar un cliente específico por su client_id
@@ -133,21 +204,30 @@ class ClientDetailView(APIView):
     
 
 class ClientQueryByEmailAPIView(APIView):
+    """
+    View for querying a client based on email.
+    Supports:
+    - GET: Fetches the client details based on email.
+    """
+
+    def query_client_by_email(self, email):
+        """Performs a query on the database using the email."""
+        return client_table.query(
+            IndexName='email-index',  # Assuming you have a secondary index called 'email-index'
+            KeyConditionExpression='email = :email_val',
+            ExpressionAttributeValues={
+                ':email_val': email
+            }
+        )
+
     def get(self, request, email):
+        """Handles GET requests to fetch client details using email."""
         try:
-            # Realizar la consulta utilizando el índice secundario del correo electrónico
-            response = client_table.query(
-                IndexName='email-index',  # Asumiendo que tienes un índice secundario llamado 'email-index'
-                KeyConditionExpression='email = :email_val',
-                ExpressionAttributeValues={
-                    ':email_val': email
-                }
-            )
-            
+            response = self.query_client_by_email(email)
             clients = response.get('Items', [])
             
-            if len(clients) > 0:
-                return Response(clients[0], status=status.HTTP_200_OK)  # Devuelve el primer cliente que coincida
+            if clients:
+                return Response(clients[0], status=status.HTTP_200_OK)  # Returns the first matching client
             else:
                 return Response({"message": "No se encontraron clientes con ese correo electrónico"}, status=status.HTTP_404_NOT_FOUND)
         
@@ -167,9 +247,13 @@ class EventCreateAPIView(APIView):
     def post(self, request):
         # Generar UUIDs para session_id y event_id si no se proporcionan
         try:
-            if 'event_source' in request.data and request.data['event_source'] != 'physical_location':
-                if 'session_id' not in request.data:
-                    request.data['session_id'] = str(uuid4())
+            # Si el event_source es 'physical_location', establece session_id al valor predeterminado
+            if 'event_source' in request.data and request.data['event_source'] != 'website':
+                request.data['session_id'] = "00000000-0000-0000-0000-000000000000"
+
+            # De lo contrario, si no se proporciona session_id, genera uno
+            elif 'session_id' not in request.data:
+                request.data['session_id'] = str(uuid4())
             if 'event_id' not in request.data:
                 request.data['event_id'] = str(uuid4())
             serializer = EventSerializer(data=request.data)
