@@ -236,72 +236,91 @@ class ClientQueryByEmailAPIView(APIView):
 
 # Vista para listar todos los eventos
 class EventListApiView(APIView):
+    """
+    View for listing all events.
+    Supports:
+    - GET: Fetches all events or, preferably, a filtered set based on conditions.
+    """
+
+    def scan_events(self, filter_condition=None):
+        """Performs a scan on the event table, with optional filter condition."""
+        scan_kwargs = {}
+        if filter_condition:
+            scan_kwargs['FilterExpression'] = filter_condition
+        return event_table.scan(**scan_kwargs)
+
     def get(self, request):
-        # Realizar un escaneo completo de la tabla de eventos
-        response = event_table.scan() # no llamar a menos que sea necesario, de preferencia agregar condicional para solo llamar los mas recientes o importantes, scan es costoso  si la tabla tiene muuchos datos
+        """Handles GET requests to fetch all or filtered events."""
+        # For better performance, consider adding a filter condition instead of scanning all records
+        # e.g., filtering for recent or important events
+        response = self.scan_events()
         events = response.get('Items', [])
         return Response(events)
 
 # Vista para crear un nuevo evento
 class EventCreateAPIView(APIView):
-    def post(self, request):
-        # Generar UUIDs para session_id y event_id si no se proporcionan
-        try:
-            # Si el event_source es 'physical_location', establece session_id al valor predeterminado
-            if 'event_source' in request.data and request.data['event_source'] != 'website':
-                request.data['session_id'] = "00000000-0000-0000-0000-000000000000"
+    """
+    View to create a new event.
+    Supports:
+    - POST: Creates a new event record.
+    """
 
-            # De lo contrario, si no se proporciona session_id, genera uno
-            elif 'session_id' not in request.data:
-                request.data['session_id'] = str(uuid4())
-            if 'event_id' not in request.data:
-                request.data['event_id'] = str(uuid4())
+    def generate_ids(self, request):
+        """Generates session_id and event_id if not provided."""
+        if ('event_source' in request.data and request.data['event_source'] != 'website'):
+            request.data['session_id'] = "00000000-0000-0000-0000-000000000000"
+        elif 'session_id' not in request.data:
+            request.data['session_id'] = str(uuid4())
+        if 'event_id' not in request.data:
+            request.data['event_id'] = str(uuid4())
+
+    def post(self, request):
+        """Handles POST requests to create a new event."""
+        try:
+            self.generate_ids(request)
             serializer = EventSerializer(data=request.data)
             if serializer.is_valid():
                 event_data = serializer.validated_data
                 mexico_tz = pytz.timezone('America/Mexico_City')
-                mexico_time = datetime.now(mexico_tz)
-                event_data['timestamp'] = mexico_time.strftime('%Y-%m-%d %H:%M:%S %Z%z')
-                if isinstance(event_data.get('event_id'), uuid.UUID):
-                    event_data['event_id'] = str(event_data['event_id'])
-
-
-                # Convertir session_id a string solo si está presente y es una instancia de uuid.UUID
-                if event_data.get('session_id') and isinstance(event_data.get('session_id'), uuid.UUID):
-                    event_data['session_id'] = str(event_data['session_id'])
-
-
+                event_data['timestamp'] = datetime.now(mexico_tz).strftime('%Y-%m-%d %H:%M:%S %Z%z')
                 event_table.put_item(Item=event_data)
                 return Response({"message": "Evento creado exitosamente."}, status=status.HTTP_201_CREATED)
-        
         except ClientError as e:
-                error_code = e.response['Error']['Code']
-                if error_code == 'ProvisionedThroughputExceededException':
-                    return Response({"error": "Se ha excedido la capacidad provisionada. Por favor, inténtalo de nuevo más tarde."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-                elif error_code == 'ResourceNotFoundException':
-                    return Response({"error": "La tabla no fue encontrada."}, status=status.HTTP_404_NOT_FOUND)
-                elif error_code == 'ConditionalCheckFailedException':
-                    return Response({"error": "La condición especificada no se cumplió."}, status=status.HTTP_400_BAD_REQUEST)
-                elif error_code == 'ValidationException':
-                    return Response({"error": "Hubo un problema con los datos de entrada."}, status=status.HTTP_400_BAD_REQUEST)
-                else:
-                    return Response({"error": "Ocurrió un error al acceder a DynamoDB."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            error_code = e.response['Error']['Code']
+            error_message = {
+                'ProvisionedThroughputExceededException': "Se ha excedido la capacidad provisionada. Por favor, inténtalo de nuevo más tarde.",
+                'ResourceNotFoundException': "La tabla no fue encontrada.",
+                'ConditionalCheckFailedException': "La condición especificada no se cumplió.",
+                'ValidationException': "Hubo un problema con los datos de entrada."
+            }.get(error_code, "Ocurrió un error al acceder a DynamoDB.")
+            return Response({"error": error_message}, status=getattr(status, f'HTTP_{error_code}_INTERNAL_SERVER_ERROR', status.HTTP_500_INTERNAL_SERVER_ERROR))
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Vista para obtener, actualizar o eliminar un evento específico
 class EventDetailView(APIView):
-    def get(self, request, event_id, session_id):
-        # Obtener un evento específico por su event_id y session_id
+    """
+    View to retrieve, update, or delete a specific event.
+    Supports:
+    - GET: Retrieve a specific event by event_id and session_id.
+    - PUT: Update a specific event by event_id and session_id.
+    - DELETE: Delete a specific event by event_id and session_id.
+    """
+    
+    def get_event(self, event_id, session_id):
+        """Helper method to fetch an event."""
         response = event_table.get_item(Key={'event_id': str(event_id), 'session_id': str(session_id)})
-        event = response.get('Item', None)
+        return response.get('Item', None)
+
+    def get(self, request, event_id, session_id):
+        """Handles GET requests to retrieve a specific event."""
+        event = self.get_event(event_id, session_id)
         if event:
             return Response(event)
         return Response({"error": "Evento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, event_id, session_id):
-        # Actualizar un evento específico por su event_id y session_id
-        response = event_table.get_item(Key={'event_id': str(event_id), 'session_id': str(session_id)})
-        event = response.get('Item', None)
+        """Handles PUT requests to update a specific event."""
+        event = self.get_event(event_id, session_id)
         if not event:
             return Response({"error": "Evento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         for key, value in request.data.items():
@@ -310,37 +329,41 @@ class EventDetailView(APIView):
         return Response({"message": "Evento actualizado exitosamente."}, status=status.HTTP_200_OK)
 
     def delete(self, request, event_id, session_id):
-        # Eliminar un evento específico por su event_id y session_id
+        """Handles DELETE requests to delete a specific event."""
         event_table.delete_item(Key={'event_id': str(event_id), 'session_id': str(session_id)})
         return Response({"message": "Evento eliminado exitosamente."}, status=status.HTTP_204_NO_CONTENT)
-    
-
 
 #vista de eventos por client_id y session_id
-
 class ClientEventsView(APIView):
+    """
+    View for listing all events associated with a specific client_id.
+    Supports:
+    - GET: Retrieve events with pagination.
+    """
+
     def get(self, request, client_id):
-        # Obtener el token de paginación si se proporciona
+        """Handles GET requests to retrieve events."""
+        # Fetch pagination token if provided
         last_evaluated_key = request.GET.get('last_evaluated_key')
         
-        # Configuración inicial para la consulta
+        # Initial configuration for the query
         query_kwargs = {
             'IndexName': 'client_id-index',
             'KeyConditionExpression': Key('client_id').eq(client_id),
-            'Limit': 100  # Limita a 10 registros por página
+            'Limit': 100  # Limits to 100 records per page, adjust as needed
         }
 
-        # Si hay un token de paginación, úsalo
+        # Use pagination token if available
         if last_evaluated_key:
             query_kwargs['ExclusiveStartKey'] = {'client_id': client_id, 'event_id': last_evaluated_key}
 
-        # Realizar la consulta con paginación
+        # Execute paginated query
         response = event_table.query(**query_kwargs)
         
-        # Obtener el token de paginación para la próxima página
+        # Fetch pagination token for the next page
         next_page_token = response.get('LastEvaluatedKey', {}).get('event_id')
         
-        # Preparar la respuesta
+        # Prepare response data
         data = {
             'events': response.get('Items', []),
             'next_page_token': next_page_token
@@ -349,8 +372,15 @@ class ClientEventsView(APIView):
         return Response(data)
     
 class SessionEventsApiView(APIView):
+    """
+    View for listing all events associated with a specific session_id.
+    Supports:
+    - GET: Retrieve events linked to the provided session_id.
+    """
+
     def get(self, request, session_id):
-        # Realiza una consulta en el GSI basado en session_id
+        """Handles GET requests to retrieve events based on session_id."""
+        # Query the GSI based on session_id
         response = event_table.query(
             IndexName='session_id-index',
             KeyConditionExpression=Key('session_id').eq(session_id)
@@ -363,13 +393,20 @@ class SessionEventsApiView(APIView):
         return Response(events)
 
 class TodaysVisitsApiView(APIView):
+    """
+    View to list all visit registration events for the current day.
+    Supports:
+    - GET: Retrieve today's visit registration events.
+    """
+
     def get(self, request):
-         # Establecer la zona horaria para la Ciudad de México
+        """Handles GET requests to retrieve today's visit registration events."""
+        # Set the timezone for Mexico City
         mexico_tz = pytz.timezone('America/Mexico_City')
-        # Obtener la fecha actual en esa zona horaria
+        # Get the current date in that timezone
         today = datetime.now(mexico_tz).strftime('%Y-%m-%d')
         
-
+        # Query the table for today's visit registration events
         response = event_table.query(
             IndexName='event_type-timestamp-index',
             KeyConditionExpression='event_type = :etype AND begins_with(#ts, :today)',
