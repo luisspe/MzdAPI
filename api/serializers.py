@@ -16,7 +16,7 @@ class UUIDFieldToString(serializers.Field):
 
     def to_internal_value(self, data):
         try:
-            return uuid.UUID(data)
+            return str(uuid.UUID(data))
         except ValueError:
             raise serializers.ValidationError("Invalid UUID format.")
 

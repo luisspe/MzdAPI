@@ -23,7 +23,7 @@ def is_valid_uuid(val):
 # Configuración inicial de DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 client_table = dynamodb.Table('clients')
-event_table = dynamodb.Table('events')
+event_table = dynamodb.Table('eventsv2')
 
 # Vista para listar todos los clientes
 class ListClientsView(APIView):
