@@ -10,6 +10,7 @@ from .views import (
     SessionEventsApiView,
     TodaysVisitsApiView,
     ClientQueryByEmailAPIView,
+    EventByIdDetailView
     
 )
 
@@ -23,7 +24,8 @@ urlpatterns = [
     # Rutas para eventos
     path('events/', EventListApiView.as_view(), name='list_events'),
     path('events/create/', EventCreateAPIView.as_view(), name='create_event'),
-    path('events/<str:event_id>/<str:session_id>/', EventDetailView.as_view(), name='detail_event'),
+    
+    path('event/<str:event_id>/', EventByIdDetailView.as_view(), name='event-by-id-detail'),
 
     # Rutas para clientes - eventos 
     path('client/<str:client_id>/events/', ClientEventsView.as_view(), name='client-events'),

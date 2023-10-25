@@ -332,6 +332,63 @@ class EventDetailView(APIView):
         """Handles DELETE requests to delete a specific event."""
         event_table.delete_item(Key={'event_id': str(event_id), 'session_id': str(session_id)})
         return Response({"message": "Evento eliminado exitosamente."}, status=status.HTTP_204_NO_CONTENT)
+    
+
+class EventByIdDetailView(APIView):
+    """
+    View to retrieve a specific event by its event_id.
+    Supports:
+    - GET: Retrieve a specific event by event_id.
+    """
+
+    def get_event(self, event_id):
+        """
+        Helper method to fetch an event based on event_id.
+        :param event_id: The ID of the event to retrieve.
+        :return: The event data, or None if not found.
+        """
+        response = event_table.get_item(Key={'event_id': str(event_id)})
+        return response.get('Item', None)
+    
+    def get(self, request, event_id):
+        """
+        Handles GET requests to retrieve a specific event.
+        :param request: The request object.
+        :param event_id: The ID of the event to retrieve.
+        :return: The event data, or a 404 error if not found.
+        """
+        event = self.get_event(event_id)
+        if event:
+            return Response(event)
+        return Response({"error": "Evento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, event_id):
+        """
+        Handles PUT requests to update a specific event.
+        :param request: The request object.
+        :param event_id: The ID of the event to update.
+        :return: Updated event data, or a 404 error if not found.
+        """
+        event = self.get_event(event_id)
+        if not event:
+            return Response({"error": "Evento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        for key, value in request.data.items():
+            event[key] = value
+        event_table.put_item(Item=event)
+        return Response({"message": "Evento actualizado exitosamente."}, status=status.HTTP_200_OK)
+
+    def delete(self, request, event_id):
+        """
+        Handles DELETE requests to delete a specific event.
+        :param request: The request object.
+        :param event_id: The ID of the event to delete.
+        :return: Success message, or a 404 error if not found.
+        """
+        event = self.get_event(event_id)
+        if not event:
+            return Response({"error": "Evento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        event_table.delete_item(Key={'event_id': str(event_id)})
+        return Response({"message": "Evento eliminado exitosamente."}, status=status.HTTP_204_NO_CONTENT)
 
 #vista de eventos por client_id y session_id
 class ClientEventsView(APIView):
