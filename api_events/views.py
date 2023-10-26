@@ -1,5 +1,5 @@
 # Importaciones necesarias
-from .serializers import ClientSerializer, EventSerializer
+from .serializers import  EventSerializer
 from boto3.dynamodb.conditions import Key
 from rest_framework.views import APIView
 from rest_framework import generics, status
@@ -183,43 +183,7 @@ class EventByIdDetailView(APIView):
         event_table.delete_item(Key={'event_id': str(event_id)})
         return Response({"message": "Evento eliminado exitosamente."}, status=status.HTTP_204_NO_CONTENT)
 
-#vista de eventos por client_id y session_id
-class ClientEventsView(APIView):
-    """
-    View for listing all events associated with a specific client_id.
-    Supports:
-    - GET: Retrieve events with pagination.
-    """
 
-    def get(self, request, client_id):
-        """Handles GET requests to retrieve events."""
-        # Fetch pagination token if provided
-        last_evaluated_key = request.GET.get('last_evaluated_key')
-        
-        # Initial configuration for the query
-        query_kwargs = {
-            'IndexName': 'client_id-index',
-            'KeyConditionExpression': Key('client_id').eq(client_id),
-            'Limit': 100  # Limits to 100 records per page, adjust as needed
-        }
-
-        # Use pagination token if available
-        if last_evaluated_key:
-            query_kwargs['ExclusiveStartKey'] = {'client_id': client_id, 'event_id': last_evaluated_key}
-
-        # Execute paginated query
-        response = event_table.query(**query_kwargs)
-        
-        # Fetch pagination token for the next page
-        next_page_token = response.get('LastEvaluatedKey', {}).get('event_id')
-        
-        # Prepare response data
-        data = {
-            'events': response.get('Items', []),
-            'next_page_token': next_page_token
-        }
-        
-        return Response(data)
     
 class SessionEventsApiView(APIView):
     """
@@ -271,10 +235,4 @@ class TodaysVisitsApiView(APIView):
 
         events = response.get('Items', [])
         return Response(events)
-
-
-
-
-
-
 
