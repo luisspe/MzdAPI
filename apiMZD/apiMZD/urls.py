@@ -15,13 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
-
+from django.urls import path
 
 urlpatterns = [
-     # Suponiendo que 'api_events' es el nombre de tu app
     path('admin/', admin.site.urls),
-    path('api-auth/', include('rest_framework.urls')),
-    path('clients/', include('api_clients.urls')), 
-    path('events/', include('api_events.urls')),  # Suponiendo que 'api_clients' es el nombre de tu app
 ]
