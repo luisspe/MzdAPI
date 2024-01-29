@@ -7,7 +7,7 @@ class ClientSerializer(serializers.Serializer):
     email = serializers.EmailField()
     number = serializers.CharField(max_length=15, required=False)
     vendedor_asignado = serializers.CharField(max_length=40, required=False)
-    unidad_de_interes = serializers.CharField(max_length=50, required=False)
+    unidad_de_interes = serializers.CharField(max_length=50, required=False)   
     
 
 class UUIDFieldToString(serializers.Field):

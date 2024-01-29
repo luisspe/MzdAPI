@@ -11,9 +11,6 @@
             "DEBUG": "True",
             "ALLOWED_HOSTS": "atnrraqss2.execute-api.us-east-1.amazonaws.com,*",
             "CORS_ALLOW_ALL_ORIGINS": "True"
-            
         }
     }
-    
-
 }
