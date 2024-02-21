@@ -61,7 +61,7 @@ class EventCreateAPIView(APIView):
     def generate_ids(self, request):
         """Generates session_id and event_id if not provided."""
         if ('event_source' in request.data and request.data['event_source'] != 'website'):
-            request.data['session_id'] = "00000000-0000-0000-0000-000000000000"
+            request.data['session_id'] = "10000000-0000-0000-0000-000000000000"
         elif 'session_id' not in request.data:
             request.data['session_id'] = str(uuid4())
         if 'event_id' not in request.data:
