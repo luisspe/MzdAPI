@@ -1,11 +1,11 @@
 from django.urls import path
 from .views import (
-    ListClientsView, 
-    ClientCreateAPiView, 
+    ListClientsView,
+    ClientCreateAPiView,
     ClientDetailView,
     ClientQueryByEmailAPIView,
     ClientEventsView,
-   
+    MessagesByPhoneNumberView 
 )
 
 urlpatterns = [
@@ -15,6 +15,6 @@ urlpatterns = [
     path('<str:client_id>/', ClientDetailView.as_view(), name='detail_client'),
     path('query/<str:email>/', ClientQueryByEmailAPIView.as_view(), name='client-query-by-email'),
     path('<str:client_id>/events/', ClientEventsView.as_view(), name='client-events'),
-   
+    path('messages/<str:phone_number>/', MessagesByPhoneNumberView.as_view(), name='messages-by-phone-number'),
 ]
 

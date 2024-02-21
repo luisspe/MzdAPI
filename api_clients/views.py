@@ -16,6 +16,7 @@ import pytz
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 client_table = dynamodb.Table('clients')
 event_table = dynamodb.Table('eventsv2')
+messages_table = dynamodb.Table('chat_mensaje')
 
 # Vista para listar todos los clientes
 class ListClientsView(APIView):
@@ -264,3 +265,39 @@ class ClientEventsView(APIView):
         }
         
         return Response(data)
+
+class MessagesByPhoneNumberView(APIView):
+    """
+    View for retrieving messages related to a specific phone number.
+    Supports:
+    - GET: Retrieve messages sent to or received from the specified phone number.
+    """
+
+    def get(self, request, phone_number):
+        """Handles GET requests to retrieve messages by phone number."""
+        try:
+            # Perform two separate queries on the chat messages table
+            response_from = messages_table.query(
+                IndexName='de_numero-index',  # Utilizando el índice global secundario 'de_numero-index'
+                KeyConditionExpression=Key('de_numero').eq(phone_number),
+                ScanIndexForward=False  # Orden inverso para obtener los mensajes más recientes primero
+            )
+
+            sended_to = messages_table.query(
+                IndexName='para_numero-index',
+                KeyConditionExpression=Key('para_numero').eq(phone_number),
+                ScanIndexForward=False
+            )
+
+            
+            # Extract messages from both responses
+            messages_from = response_from.get('Items', [])
+            messages_to = sended_to.get('Items', [])
+
+            # Combine messages from both queries
+            all_messages = messages_from + messages_to
+
+            return Response(all_messages, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
