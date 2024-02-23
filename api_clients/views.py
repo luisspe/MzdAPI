@@ -189,6 +189,35 @@ class ClientDetailView(APIView):
         """
         response = client_table.get_item(Key={'client_id': client_id})
         return response.get('Item', None)
+    
+    def patch(self, request, client_id):
+        """
+        Partially updates a specific client by client_id with the provided id_chat.
+
+        Responses:
+        - 200 OK: Client id_chat was successfully updated.
+        - 400 Bad Request: Invalid data was supplied.
+        - 404 Not Found: Client was not found.
+        """
+        client = self.get_client(client_id)
+        if not client:
+            return Response({"error": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        
+        id_chat = request.data.get('id_chat')
+        if not id_chat:
+            return Response({"error": "id_chat es requerido."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Actualiza solo el campo id_chat
+        response = client_table.update_item(
+            Key={'client_id': client_id},
+            UpdateExpression='SET id_chat = :val',
+            ExpressionAttributeValues={
+                ':val': id_chat
+            },
+            ReturnValues="UPDATED_NEW"
+        )
+        
+        return Response({"message": "id_chat actualizado exitosamente."}, status=status.HTTP_200_OK)
 
     def delete(self, request, client_id):
         # Eliminar un cliente específico por su client_id
