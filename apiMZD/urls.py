@@ -23,5 +23,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
     path('clients/', include('api_clients.urls')), 
-    path('events/', include('api_events.urls')),  # Suponiendo que 'api_clients' es el nombre de tu app
+    path('events/', include('api_events.urls')),
+    path('vendedores/', include('api_vendedores.urls'))
 ]
