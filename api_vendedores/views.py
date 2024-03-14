@@ -133,3 +133,39 @@ class VendedorCreateAPIView(APIView):
         }
         status_code = status_codes.get(error_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response({"error": error_message}, status=status_code)
+
+
+class VendedorByEmailAPIView(APIView):
+    def get(self, request, email):
+        """
+        Handles GET requests to retrieve a vendedor by email.
+
+        Responses:
+        - 200 OK: Returns the vendedor object if found.
+        - 404 Not Found: Vendedor not found.
+        - 500 Internal Server Error: Unexpected server error.
+        """
+        try:
+            # Realizar una consulta en el índice global secundario por email
+            response = vendedores_table.query(
+                IndexName='email-index',
+                KeyConditionExpression='email = :email',
+                ExpressionAttributeValues={
+                    ':email': email
+                }
+            )
+
+            # Obtener el vendedor de la respuesta
+            vendedor = response.get('Items', [])
+
+            # Comprobar si se encontró algún vendedor
+            if vendedor:
+                return Response(VendedorSerializer(vendedor[0]).data)
+            else:
+                return Response({'error': 'Vendedor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        
+        except ClientError as e:
+            return self.handle_dynamodb_error(e)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
