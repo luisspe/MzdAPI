@@ -77,7 +77,11 @@ class EventCreateAPIView(APIView):
                 mexico_tz = pytz.timezone('America/Mexico_City')
                 event_data['timestamp'] = datetime.now(mexico_tz).strftime('%Y-%m-%d %H:%M:%S %Z%z')
                 event_table.put_item(Item=event_data)
-                return Response({"message": "Evento creado exitosamente."}, status=status.HTTP_201_CREATED)
+                # Modified to include the event_id in the response
+                return Response({
+                    "message": "Evento creado exitosamente.",
+                    "event_id": request.data['event_id']  # Return the event_id
+                }, status=status.HTTP_201_CREATED)
         except ClientError as e:
             error_code = e.response['Error']['Code']
             error_message = {
