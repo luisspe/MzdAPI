@@ -13,6 +13,45 @@ event_table = dynamodb.Table('eventsv2')
 vendedores_table = dynamodb.Table('vendedores')
 messages_table = dynamodb.Table('chat_mensaje')
 
+class VendedorByIdAPIView(APIView):
+    def get(self, request, vendedor_id):
+        """
+        Handles GET requests to retrieve a vendedor by vendedor_id.
+
+        Path Parameters:
+        - vendedor_id: The ID of the vendedor to retrieve.
+
+        Responses:
+        - 200 OK: Returns the vendedor object if found.
+        - 404 Not Found: Vendedor not found.
+        - 500 Internal Server Error: Unexpected server error.
+        """
+        try:
+            # Realizar una consulta para obtener el vendedor por su ID
+            response = vendedores_table.get_item(
+                Key={'vendedor_id': vendedor_id}
+            )
+
+            # Obtener el vendedor de la respuesta
+            vendedor = response.get('Item')
+
+            # Comprobar si se encontró algún vendedor
+            if vendedor:
+                return Response(vendedor)
+            else:
+                return Response({'error': 'Vendedor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        except ClientError as e:
+            return self.handle_dynamodb_error(e)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def handle_dynamodb_error(self, e):
+        # Asumiendo que tienes una función que maneja errores de DynamoDB
+        return VendedorCreateAPIView.handle_vendedor_error(self, e.response['Error']['Code'])
+    
+
 
 class ListVendedoresView(APIView):
     def get(self, request):
