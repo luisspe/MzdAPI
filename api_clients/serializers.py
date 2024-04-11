@@ -9,6 +9,7 @@ class ClientSerializer(serializers.Serializer):
     vendedor_asignado = serializers.CharField(max_length=40, required=False)
     unidad_de_interes = serializers.CharField(max_length=50, required=False)   
     id_chat = serializers.CharField(max_length=50, required=False)
+    sucursal = serializers.CharField(max_length=50, required=False)
 
 class UUIDFieldToString(serializers.Field):
     def to_representation(self, value):
