@@ -62,47 +62,34 @@ class ListClientsView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Vista para crear un nuevo cliente
-class ClientCreateAPiView(APIView):
+class ClientCreateAPIView(APIView):
     def post(self, request):
-        """
-        Handles POST requests to create a new client.
-
-        Request Body:
-        - All fields required by the ClientSerializer.
-
-        Responses:
-        - 201 Created: Client was successfully created.
-        - 400 Bad Request: Invalid data was supplied.
-        - 404 Not Found: The table was not found.
-        - 500 Internal Server Error: Unexpected server error.
-        """
         serializer = ClientSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                # Create the client in the table
+                # Crear el cliente en la tabla
                 client_table.put_item(Item=serializer.validated_data)
                 
-                # Get the client_id of the newly created client
+                # Obtener el client_id del cliente recién creado
                 client_id = serializer.validated_data.get('client_id')
                 
-                # Get the session_id from the request
+                # Procesar el session_id si está presente
                 session_id = request.data.get('session_id')
-                
-                # If the session_id is present, update the events
                 if session_id:
-                    # Query to get all events with that session_id
+                    # Consultar todos los eventos con ese session_id
                     response = event_table.query(
                         IndexName='session_id-index',
                         KeyConditionExpression=Key('session_id').eq(session_id)
                     )
                     events = response.get('Items', [])
-
-                    # Update each event to add the client_id
+                    
+                    # Actualizar cada evento para agregar el client_id
                     for event in events:
                         event['client_id'] = client_id
                         event_table.put_item(Item=event)
 
-                return Response({"message": "Cliente creado exitosamente."}, status=status.HTTP_201_CREATED)
+                # Devolver el client_id en la respuesta
+                return Response({"message": "Cliente creado exitosamente.", "client_id": client_id}, status=status.HTTP_201_CREATED)
             
             except ClientError as e:
                 error_code = e.response['Error']['Code']
