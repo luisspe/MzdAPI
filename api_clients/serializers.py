@@ -4,7 +4,7 @@ from rest_framework import serializers
 class ClientSerializer(serializers.Serializer):
     client_id = serializers.CharField(max_length=40)  # Si estás utilizando un ID numérico
     name = serializers.CharField(max_length=200)
-    email = serializers.EmailField()
+    email = serializers.EmailField(required=False)
     number = serializers.CharField(max_length=15, required=False)
     vendedor_asignado = serializers.CharField(max_length=40, required=False)
     unidad_de_interes = serializers.CharField(max_length=50, required=False)   
