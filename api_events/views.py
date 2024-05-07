@@ -10,7 +10,7 @@ from botocore.exceptions import ClientError
 import uuid
 import boto3
 import pytz
-
+import os
 
 # Función para validar si un valor es un UUID válido
 def is_valid_uuid(val):
@@ -22,8 +22,8 @@ def is_valid_uuid(val):
 
 # Configuración inicial de DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-client_table = dynamodb.Table('clients')
-event_table = dynamodb.Table('eventsv2')
+client_table = dynamodb.Table(os.getenv('CLIENT_TABLE_NAME', 'clients_default'))
+event_table = dynamodb.Table(os.getenv('EVENT_TABLE_NAME', 'eventsv2_default'))
 
 
 

@@ -5,13 +5,13 @@ from botocore.exceptions import ClientError
 from .serializers import VendedorSerializer  # Importa el serializer para el vendedor
 import boto3
 from boto3.dynamodb.conditions import Key
-
+import os
 # Configuración inicial de DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-client_table = dynamodb.Table('clients')
-event_table = dynamodb.Table('eventsv2')
-vendedores_table = dynamodb.Table('vendedores')
-messages_table = dynamodb.Table('chat_mensaje')
+
+client_table = dynamodb.Table(os.getenv('CLIENT_TABLE_NAME', 'clients_default'))
+event_table = dynamodb.Table(os.getenv('EVENT_TABLE_NAME', 'eventsv2_default'))
+vendedores_table = dynamodb.Table(os.getenv('VENDEDORES_TABLE_NAME', 'vendedores-dev'))
 
 class VendedorByIdAPIView(APIView):
     def get(self, request, vendedor_id):
@@ -39,7 +39,7 @@ class VendedorByIdAPIView(APIView):
             if vendedor:
                 return Response(vendedor)
             else:
-                return Response({'error': 'Vendedor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Vendedor no encontradoo'}, status=status.HTTP_404_NOT_FOUND)
 
         except ClientError as e:
             return self.handle_dynamodb_error(e)

@@ -10,13 +10,13 @@ from botocore.exceptions import ClientError
 import uuid
 import boto3
 import pytz
-
+import os
 
 # Configuración inicial de DynamoDB
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
-client_table = dynamodb.Table("clients")
-event_table = dynamodb.Table("eventsv2")
-messages_table = dynamodb.Table("chat_mensaje")
+client_table = dynamodb.Table(os.getenv('CLIENT_TABLE_NAME', 'clients_default'))
+event_table = dynamodb.Table(os.getenv('EVENT_TABLE_NAME', 'eventsv2_default'))
+messages_table = dynamodb.Table(os.getenv('MESSAGE_TABLE_NAME', 'chat_mensaje_default'))
 
 # Vista para listar todos los clientes
 class ListClientsView(APIView):
