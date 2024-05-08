@@ -13,7 +13,7 @@
             "CORS_ALLOW_ALL_ORIGINS": "True",
             "CLIENT_TABLE_NAME": "clients-dev",
             "EVENT_TABLE_NAME": "events-dev",
-            "MESSAGE_TABLE_NAME": "chat-mensaje-dev",
+            "MESSAGE_TABLE_NAME": "chat-mensaje-dev2",
             "VENDEDORES_TABLE_NAME": "vendedores-dev"
         }
     },
