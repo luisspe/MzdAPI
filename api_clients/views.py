@@ -415,6 +415,8 @@ class MessagesToClienteView(APIView):
 
             if response['Items']:
                 mensajes = response['Items']
+                # Ordenar los mensajes por fecha del más reciente al más antiguo
+                mensajes.sort(key=lambda x: x['fecha'], reverse=True)
                 return Response(mensajes, status=status.HTTP_200_OK)
             else:
                 return Response({"message": "No se encontró ningún mensaje"}, status=status.HTTP_404_NOT_FOUND)
