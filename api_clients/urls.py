@@ -19,6 +19,6 @@ urlpatterns = [
     path('query/number/<str:number>/', ClientQueryByNumberAPIView.as_view(), name='client-query-by-number'),
     path('<str:client_id>/events/', ClientEventsView.as_view(), name='client-events'),
     path('messages/<str:phone_number>/', MessagesByPhoneNumberView.as_view(), name='messages-by-phone-number'),
-    path('last-message/<str:numero_cliente>/', MessagesToClienteView.as_view(), name='last-message'),
+    path('messages-to-cliente/<str:numero_cliente>/', MessagesToClienteView.as_view(), name='messages-to-cliente'),
 ]
 
