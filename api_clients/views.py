@@ -403,7 +403,7 @@ class MessagesByPhoneNumberView(APIView):
 
 class MessagesToClienteView(APIView):
     """
-    View to get all messages sent to a specific cliente (numero_cliente).
+    View to get the most recent message sent to a specific cliente (numero_cliente).
     """
     def get(self, request, numero_cliente):
         try:
@@ -417,7 +417,9 @@ class MessagesToClienteView(APIView):
                 mensajes = response['Items']
                 # Ordenar los mensajes por fecha del más reciente al más antiguo
                 mensajes.sort(key=lambda x: x['fecha'], reverse=True)
-                return Response(mensajes, status=status.HTTP_200_OK)
+                # Devolver solo el mensaje más reciente
+                ultimo_mensaje = mensajes[0]
+                return Response(ultimo_mensaje, status=status.HTTP_200_OK)
             else:
                 return Response({"message": "No se encontró ningún mensaje"}, status=status.HTTP_404_NOT_FOUND)
 
