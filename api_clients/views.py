@@ -16,7 +16,7 @@ import os
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 client_table = dynamodb.Table(os.getenv('CLIENT_TABLE_NAME', 'clients_default'))
 event_table = dynamodb.Table(os.getenv('EVENT_TABLE_NAME', 'eventsv2_default'))
-messages_table = dynamodb.Table(os.getenv('MESSAGE_TABLE_NAME', 'chat_mensaje_default'))
+messages_table = dynamodb.Table(os.getenv('MESSAGE_TABLE_NAME', 'chat-mensaje-dev2'))
 
 # Vista para listar todos los clientes
 class ListClientsView(APIView):
@@ -399,3 +399,26 @@ class MessagesByPhoneNumberView(APIView):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class MessagesToClienteView(APIView):
+    """
+    View to get the most recent message sent to a specific cliente (numero_cliente).
+    """
+    def get(self, request, numero_cliente):
+        try:
+            response = messages_table.query(
+                IndexName='para_numero-index',
+                KeyConditionExpression=Key('para_numero').eq(numero_cliente),
+                ScanIndexForward=False,  # Orden inverso para obtener los mensajes más recientes primero
+                Limit=1  # Limit to only the most recent message
+            )
+
+            if response['Items']:
+                ultimo_mensaje = response['Items'][0]
+                return Response(ultimo_mensaje, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No se encontró ningún mensaje"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
