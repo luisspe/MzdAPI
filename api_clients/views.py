@@ -403,20 +403,19 @@ class MessagesByPhoneNumberView(APIView):
 
 class MessagesToClienteView(APIView):
     """
-    View to get the most recent message sent to a specific cliente (numero_cliente).
+    View to get all messages sent to a specific cliente (numero_cliente).
     """
     def get(self, request, numero_cliente):
         try:
             response = messages_table.query(
                 IndexName='para_numero-index',
                 KeyConditionExpression=Key('para_numero').eq(numero_cliente),
-                ScanIndexForward=False,  # Orden inverso para obtener los mensajes más recientes primero
-                Limit=1  # Limit to only the most recent message
+                ScanIndexForward=False  # Orden inverso para obtener los mensajes más recientes primero
             )
 
             if response['Items']:
-                ultimo_mensaje = response['Items'][0]
-                return Response(ultimo_mensaje, status=status.HTTP_200_OK)
+                mensajes = response['Items']
+                return Response(mensajes, status=status.HTTP_200_OK)
             else:
                 return Response({"message": "No se encontró ningún mensaje"}, status=status.HTTP_404_NOT_FOUND)
 
