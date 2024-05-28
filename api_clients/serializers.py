@@ -10,6 +10,7 @@ class ClientSerializer(serializers.Serializer):
     unidad_de_interes = serializers.CharField(max_length=50, required=False, allow_blank=True)
     id_chat = serializers.CharField(max_length=50, required=False, allow_blank=True)
     sucursal = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    personal_chat = serializers.CharField(max_length=40, required=False, allow_blank=True)
 
 
 class UUIDFieldToString(serializers.Field):
