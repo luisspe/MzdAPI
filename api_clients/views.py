@@ -344,9 +344,13 @@ class ClientQueryByNameAPIView(APIView):
             clients = response.get("Items", [])
 
             if clients:
+                filtered_clients = [
+                    {"email": client.get("email"), "number": client.get("number")}
+                    for client in clients
+                ]
                 return Response(
-                    clients, status=status.HTTP_200_OK
-                )  # Returns all matching clients
+                    filtered_clients, status=status.HTTP_200_OK
+                )  # Returns filtered clients with email and number
             else:
                 return Response(
                     {"message": "No se encontraron clientes con ese nombre"},
@@ -357,7 +361,6 @@ class ClientQueryByNameAPIView(APIView):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 
 # vista de eventos por client_id y session_id
 class ClientEventsView(APIView):
