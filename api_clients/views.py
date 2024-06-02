@@ -322,6 +322,41 @@ class ClientQueryByNumberAPIView(APIView):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class ClientQueryByNameAPIView(APIView):
+    """
+    View for querying a client based on name.
+    Supports:
+    - GET: Fetches the client details based on name.
+    """
+
+    def query_client_by_name(self, name):
+        """Performs a query on the database using the name."""
+        return client_table.query(
+            IndexName="name-index",  # Usando el índice secundario global llamado 'name-index'
+            KeyConditionExpression=Key("name").eq(name),
+        )
+
+    def get(self, request, name):
+        """Handles GET requests to fetch client details using name."""
+        try:
+            response = self.query_client_by_name(name)
+            clients = response.get("Items", [])
+
+            if clients:
+                return Response(
+                    clients, status=status.HTTP_200_OK
+                )  # Returns all matching clients
+            else:
+                return Response(
+                    {"message": "No se encontraron clientes con ese nombre"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # vista de eventos por client_id y session_id

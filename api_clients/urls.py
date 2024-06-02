@@ -8,6 +8,7 @@ from .views import (
     MessagesByPhoneNumberView,
     ClientQueryByNumberAPIView,
     MessagesToClienteView,
+    ClientQueryByNameAPIView
 )
 
 urlpatterns = [
@@ -17,6 +18,7 @@ urlpatterns = [
     path('<str:client_id>/', ClientDetailView.as_view(), name='detail_client'),
     path('query/<str:email>/', ClientQueryByEmailAPIView.as_view(), name='client-query-by-email'),
     path('query/number/<str:number>/', ClientQueryByNumberAPIView.as_view(), name='client-query-by-number'),
+    path('query/number/<str:number>/', ClientQueryByNameAPIView.as_view(), name='client-query-by-name'),
     path('<str:client_id>/events/', ClientEventsView.as_view(), name='client-events'),
     path('messages/<str:phone_number>/', MessagesByPhoneNumberView.as_view(), name='messages-by-phone-number'),
     path('messages-to-cliente/<str:numero_cliente>/', MessagesToClienteView.as_view(), name='messages-to-cliente'),
