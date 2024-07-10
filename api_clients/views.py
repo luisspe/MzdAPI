@@ -1,6 +1,6 @@
 # Importaciones necesarias
 from .serializers import ClientSerializer
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Key, Attr
 from rest_framework.views import APIView
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -463,6 +463,35 @@ class MessagesToClienteView(APIView):
                 return Response(ultimo_mensaje, status=status.HTTP_200_OK)
             else:
                 return Response({"message": "No se encontró ningún mensaje"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
+class CreditApprovalMessageView(APIView):
+    """
+    View to get the specific message that indicates credit approval for a cliente.
+    """
+    def get(self, request, numero_cliente):
+        try:
+            response = messages_table.query(
+                IndexName='para_numero-index',
+                KeyConditionExpression=Key('para_numero').eq(numero_cliente),
+                FilterExpression=Attr('mensaje').contains("ESTIMADO CLIENTE, TU EXPEDIENTE HA SIDO INTEGRADO CORRECTAMENTE. EN UN PERIODO DE 72 HORAS HÁBILES RECIBIRÁ RESPUESTA DE TU SOLICITUD DE CRÉDITO."),
+                ScanIndexForward=False  # Orden inverso para obtener los mensajes más recientes primero
+            )
+
+            if response['Items']:
+                mensajes = response['Items']
+                # Ordenar los mensajes por fecha del más reciente al más antiguo
+                mensajes.sort(key=lambda x: x['fecha'], reverse=True)
+                # Devolver solo el mensaje más reciente que cumple con el filtro
+                mensaje_autorizacion = mensajes[0]
+                return Response(mensaje_autorizacion, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No se encontró ningún mensaje de autorización de crédito"}, status=status.HTTP_404_NOT_FOUND)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

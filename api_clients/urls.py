@@ -8,7 +8,8 @@ from .views import (
     MessagesByPhoneNumberView,
     ClientQueryByNumberAPIView,
     MessagesToClienteView,
-    ClientQueryByNameAPIView
+    ClientQueryByNameAPIView,
+    CreditApprovalMessageView
 )
 
 urlpatterns = [
@@ -22,5 +23,6 @@ urlpatterns = [
     path('<str:client_id>/events/', ClientEventsView.as_view(), name='client-events'),
     path('messages/<str:phone_number>/', MessagesByPhoneNumberView.as_view(), name='messages-by-phone-number'),
     path('messages-to-cliente/<str:numero_cliente>/', MessagesToClienteView.as_view(), name='messages-to-cliente'),
+    path('credit-approval-message/<str:numero_cliente>/', CreditApprovalMessageView.as_view(), name='credit-approval-message'),  # Nueva ruta para CreditApprovalMessageView
 ]
 
