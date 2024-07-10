@@ -479,7 +479,7 @@ class CreditApprovalMessageView(APIView):
             response = messages_table.query(
                 IndexName='para_numero-index',
                 KeyConditionExpression=Key('para_numero').eq(numero_cliente),
-                FilterExpression=Attr('mensaje').contains("ESTIMADO CLIENTE, TU EXPEDIENTE HA SIDO INTEGRADO CORRECTAMENTE"),
+                FilterExpression=Attr('mensaje').contains("expediente"),
                 ScanIndexForward=False  # Orden inverso para obtener los mensajes más recientes primero
             )
 
