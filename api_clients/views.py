@@ -479,7 +479,7 @@ class CreditApprovalMessageView(APIView):
             response = messages_table.query(
                 IndexName='para_numero-index',
                 KeyConditionExpression=Key('para_numero').eq(numero_cliente),
-                FilterExpression=Attr('mensaje').contains("ESTIMADO CLIENTE, TU EXPEDIENTE HA SIDO INTEGRADO CORRECTAMENTE. EN UN PERIODO DE 72 HORAS HÁBILES RECIBIRÁ RESPUESTA DE TU SOLICITUD DE CRÉDITO."),
+                FilterExpression=Attr('mensaje').contains("ESTIMADO CLIENTE, TU EXPEDIENTE HA SIDO INTEGRADO CORRECTAMENTE"),
                 ScanIndexForward=False  # Orden inverso para obtener los mensajes más recientes primero
             )
 
