@@ -415,32 +415,56 @@ class DeleteMessagesByPhoneNumberView(APIView):
     def delete(self, request, phone_number):
         """Handles DELETE requests to remove messages by phone number."""
         try:
-            # Query messages sent from the phone number
-            response_from = messages_table.query(
-                IndexName="de_numero-index",
-                KeyConditionExpression=Key("de_numero").eq(phone_number),
-            )
+            # Limitar la cantidad de mensajes a eliminar en cada lote
+            limit = 50
+            last_evaluated_key_from = None
+            last_evaluated_key_to = None
 
-            # Query messages sent to the phone number
-            sended_to = messages_table.query(
-                IndexName="para_numero-index",
-                KeyConditionExpression=Key("para_numero").eq(phone_number),
-            )
-
-            # Extract messages from both responses
-            messages_from = response_from.get("Items", [])
-            messages_to = sended_to.get("Items", [])
-
-            # Combine messages from both queries
-            all_messages = messages_from + messages_to
-
-            for message in all_messages:
-                messages_table.delete_item(
-                    Key={
-                        'id_chat': message['id_chat'],
-                        'fecha': message['fecha'],
-                    }
+            while True:
+                # Query messages sent from the phone number
+                response_from = messages_table.query(
+                    IndexName="de_numero-index",
+                    KeyConditionExpression=Key("de_numero").eq(phone_number),
+                    Limit=limit,
+                    ExclusiveStartKey=last_evaluated_key_from,
+                    ReturnConsumedCapacity='TOTAL'
                 )
+
+                # Query messages sent to the phone number
+                sended_to = messages_table.query(
+                    IndexName="para_numero-index",
+                    KeyConditionExpression=Key("para_numero").eq(phone_number),
+                    Limit=limit,
+                    ExclusiveStartKey=last_evaluated_key_to,
+                    ReturnConsumedCapacity='TOTAL'
+                )
+
+                # Extract messages from both responses
+                messages_from = response_from.get("Items", [])
+                messages_to = sended_to.get("Items", [])
+
+                # Combine messages from both queries
+                all_messages = messages_from + messages_to
+
+                if not all_messages:
+                    break
+
+                # Eliminate the messages
+                for message in all_messages:
+                    messages_table.delete_item(
+                        Key={
+                            'id_chat': message['id_chat'],
+                            'fecha': message['fecha'],
+                        }
+                    )
+
+                # Update the last evaluated keys
+                last_evaluated_key_from = response_from.get('LastEvaluatedKey')
+                last_evaluated_key_to = sended_to.get('LastEvaluatedKey')
+
+                # Break loop if no more messages
+                if not last_evaluated_key_from and not last_evaluated_key_to:
+                    break
 
             return Response({"message": "Messages deleted successfully."}, status=status.HTTP_200_OK)
 
