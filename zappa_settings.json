@@ -5,6 +5,7 @@
         "profile_name": "default",
         "project_name": "apimzd",
         "runtime": "python3.10",
+        "slim_handler": true,
         "s3_bucket": "zappa-ue8sy8lal",
         "environment_variables": {
             "SECRET_KEY": "django-insecure-+@%*j@5#fvp6#a(z49q-h@sj-vs&vdz+fmu&^@vinj_drp1g39",
@@ -22,6 +23,7 @@
         "django_settings": "apiMZD.settings",
         "profile_name": "default",
         "project_name": "apimzd",
+        "slim_handler": true,
         "runtime": "python3.10",
         "s3_bucket": "zappa-production-bucket", 
         "environment_variables": {
@@ -35,4 +37,5 @@
             "VENDEDORES_TABLE_NAME": "vendedores"
         }
     }
+
 }
