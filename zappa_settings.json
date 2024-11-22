@@ -1,4 +1,23 @@
 {
+    "merida-dev": {
+        "aws_region": "us-east-1",
+        "django_settings": "apiMZD.settings",
+        "profile_name": "default",
+        "project_name": "apimzd",
+        "runtime": "python3.10",
+        "slim_handler": true,
+        "s3_bucket": "zappa-ue8sy8lal",
+        "environment_variables": {
+            "SECRET_KEY": "django-insecure-+@%*j@5#fvp6#a(z49q-h@sj-vs&vdz+fmu&^@vinj_drp1g39",
+            "DEBUG": "True",
+            "ALLOWED_HOSTS": "atnrraqss2.execute-api.us-east-1.amazonaws.com,*",
+            "CORS_ALLOW_ALL_ORIGINS": "True",
+            "CLIENT_TABLE_NAME": "clients-merida",
+            "EVENT_TABLE_NAME": "eventsv2-merida",
+            "MESSAGE_TABLE_NAME": "chat_mensaje_merida",
+            "VENDEDORES_TABLE_NAME": "vendedores_merida"
+        }
+    },
     "dev": {
         "aws_region": "us-east-1",
         "django_settings": "apiMZD.settings",
@@ -25,9 +44,9 @@
         "project_name": "apimzd",
         "slim_handler": true,
         "runtime": "python3.10",
-        "s3_bucket": "zappa-production-bucket", 
+        "s3_bucket": "zappa-production-bucket",
         "environment_variables": {
-            "SECRET_KEY": "django-insecure-+@%*j@5#fvp6#a(z49q-h@sj-vs&vdz+fmu&^@vinj_drp1g39", 
+            "SECRET_KEY": "django-insecure-+@%*j@5#fvp6#a(z49q-h@sj-vs&vdz+fmu&^@vinj_drp1g39",
             "DEBUG": "False",
             "ALLOWED_HOSTS": "production-api-url.com,*",
             "CORS_ALLOW_ALL_ORIGINS": "True",
@@ -37,5 +56,4 @@
             "VENDEDORES_TABLE_NAME": "vendedores"
         }
     }
-
 }
