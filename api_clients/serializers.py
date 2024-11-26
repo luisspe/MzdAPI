@@ -11,8 +11,10 @@ class ClientSerializer(serializers.Serializer):
     id_chat = serializers.CharField(max_length=50, required=False, allow_blank=True)
     sucursal = serializers.CharField(max_length=50, required=False, allow_blank=True)
     personal_chat = serializers.CharField(max_length=40, required=False, allow_blank=True)
-
-
+    id_chat_instagram = serializers.CharField(max_length=80, required=False, allow_blank=True)
+    instagram_username = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    instagram_user_id = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    
 class UUIDFieldToString(serializers.Field):
     def to_representation(self, value):
         return str(value)
