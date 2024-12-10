@@ -14,6 +14,10 @@ class ClientSerializer(serializers.Serializer):
     id_chat_instagram = serializers.CharField(max_length=80, required=False, allow_blank=True)
     instagram_username = serializers.CharField(max_length=40, required=False, allow_blank=True)
     instagram_user_id = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    color_coche = serializers.CharField(max_length=30, required=False, allow_blank=True)  # Color del coche
+    numero_catalogo = serializers.IntegerField(required=False)  # Número de catálogo
+    fecha_cumpleanos = serializers.DateField(required=False, allow_null=True)  # Fecha de cumpleaños del cliente
+    
     
 class UUIDFieldToString(serializers.Field):
     def to_representation(self, value):
