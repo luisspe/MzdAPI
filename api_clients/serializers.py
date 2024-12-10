@@ -16,17 +16,9 @@ class ClientSerializer(serializers.Serializer):
     instagram_user_id = serializers.CharField(max_length=40, required=False, allow_blank=True)
     color_coche = serializers.CharField(max_length=30, required=False, allow_blank=True)  # Color del coche
     numero_catalogo = serializers.IntegerField(required=False)  # Número de catálogo
-    fecha_cumpleanos = serializers.DateField(required=False, allow_null=True)  # Fecha de cumpleaños del cliente
+    fecha_cumpleanos = serializers.CharField(max_length=30, required=False, allow_null=True)  # Fecha de cumpleaños del cliente
     
-    def to_representation(self, instance):
-        """
-        Sobrescribe la representación de los datos para asegurar la compatibilidad.
-        """
-        representation = super().to_representation(instance)
-        # Convertir fecha_cumpleanos a una cadena ISO si no es nula
-        if representation.get('fecha_cumpleanos'):
-            representation['fecha_cumpleanos'] = representation['fecha_cumpleanos'].isoformat()
-        return representation
+
     
 class UUIDFieldToString(serializers.Field):
     def to_representation(self, value):
