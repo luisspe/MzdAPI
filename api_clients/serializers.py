@@ -18,6 +18,15 @@ class ClientSerializer(serializers.Serializer):
     numero_catalogo = serializers.IntegerField(required=False)  # Número de catálogo
     fecha_cumpleanos = serializers.DateField(required=False, allow_null=True)  # Fecha de cumpleaños del cliente
     
+    def to_representation(self, instance):
+        """
+        Sobrescribe la representación de los datos para asegurar la compatibilidad.
+        """
+        representation = super().to_representation(instance)
+        # Convertir fecha_cumpleanos a una cadena ISO si no es nula
+        if representation.get('fecha_cumpleanos'):
+            representation['fecha_cumpleanos'] = representation['fecha_cumpleanos'].isoformat()
+        return representation
     
 class UUIDFieldToString(serializers.Field):
     def to_representation(self, value):
