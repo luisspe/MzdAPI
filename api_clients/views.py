@@ -405,131 +405,66 @@ class ClientEventsView(APIView):
 
 
 
-class DeleteMessagesByPhoneNumberView(APIView):
+ class DeleteMessagesByPhoneNumberView(APIView):
     """
-    View for deleting ALL messages related to a specific phone number
-    (both sent FROM and TO that number), in a paginated + batched manner.
+    View for deleting up to 50 messages related to a specific phone number.
+    Supports:
+    - DELETE: Delete up to 50 messages sent to or received from the specified phone number.
     """
-
-    def get_all_keys_for_index(self, index_name, key_name, phone_number, limit=100):
-        """
-        Generador que recorre (paginado) todos los items de 'index_name'
-        donde 'key_name' == phone_number. Retorna sólo las Keys necesarias
-        para el delete: (id_chat, fecha).
-        """
-        last_evaluated_key = None
-
-        while True:
-            query_params = {
-                'IndexName': index_name,
-                'KeyConditionExpression': Key(key_name).eq(phone_number),
-                'ProjectionExpression': '#idc, #f',  # Solo tomamos las llaves primarias
-                'ExpressionAttributeNames': {
-                    '#idc': 'id_chat',
-                    '#f': 'fecha'
-                },
-                'Limit': limit
-            }
-            if last_evaluated_key:
-                query_params['ExclusiveStartKey'] = last_evaluated_key
-
-            response = messages_table.query(**query_params)
-            items = response.get("Items", [])
-            for item in items:
-                yield {
-                    'id_chat': item['id_chat'],
-                    'fecha': item['fecha']
-                }
-
-            # Si no hay más páginas, rompemos
-            if 'LastEvaluatedKey' not in response or not response['LastEvaluatedKey']:
-                break
-            else:
-                last_evaluated_key = response['LastEvaluatedKey']
 
     def delete(self, request, phone_number):
-        """
-        Elimina TODOS los mensajes asociados a phone_number (tanto de_numero como para_numero).
-        Realiza paginación y usa BatchWriteItem en bloques de 25 para optimizar.
-        """
+        """Handles DELETE requests to remove up to 50 messages by phone number."""
         try:
-            # 1. Recorremos TODOS los items del índice "de_numero-index"
-            # 2. Recorremos TODOS los items del índice "para_numero-index"
-            # 3. Juntamos esas keys y hacemos Batch Write en lotes de 25.
+            # Limitar la cantidad de mensajes a eliminar en cada llamada
+            limit = 50
 
-            delete_requests = []
+            # Query messages sent from the phone number
+            response_from = messages_table.query(
+                IndexName="de_numero-index",
+                KeyConditionExpression=Key("de_numero").eq(phone_number),
+                Limit=limit,
+                ScanIndexForward=False,
+            )
 
-            # -----------------------
-            # Mensajes enviados DESDE phone_number
-            # -----------------------
-            for key_item in self.get_all_keys_for_index(
-                index_name="de_numero-index",
-                key_name="de_numero",
-                phone_number=phone_number,
-                limit=100
-            ):
-                delete_requests.append({
-                    'DeleteRequest': {
-                        'Key': {
-                            'id_chat': key_item['id_chat'],
-                            'fecha': key_item['fecha']
-                        }
+            # Query messages sent to the phone number
+            sended_to = messages_table.query(
+                IndexName="para_numero-index",
+                KeyConditionExpression=Key("para_numero").eq(phone_number),
+                Limit=limit,
+                ScanIndexForward=False,
+            )
+
+            # Extract messages from both responses
+            messages_from = response_from.get("Items", [])
+            messages_to = sended_to.get("Items", [])
+
+            # Combine messages from both queries, ensuring we only handle up to 50 in total
+            all_messages = messages_from + messages_to
+            all_messages = all_messages[:limit]
+
+            # Eliminate the messages
+            for message in all_messages:
+                messages_table.delete_item(
+                    Key={
+                        'id_chat': message['id_chat'],
+                        'fecha': message['fecha'],
                     }
-                })
+                )
 
-            # -----------------------
-            # Mensajes enviados A phone_number
-            # -----------------------
-            for key_item in self.get_all_keys_for_index(
-                index_name="para_numero-index",
-                key_name="para_numero",
-                phone_number=phone_number,
-                limit=100
-            ):
-                delete_requests.append({
-                    'DeleteRequest': {
-                        'Key': {
-                            'id_chat': key_item['id_chat'],
-                            'fecha': key_item['fecha']
-                        }
-                    }
-                })
-
-            total_deleted = 0
-
-            # -----------------------
-            # Eliminamos en bloques de 25
-            # -----------------------
-            chunk_size = 25
-            for i in range(0, len(delete_requests), chunk_size):
-                chunk = delete_requests[i:i+chunk_size]
-                request_items = {messages_table.name: chunk}
-                response = boto3.client('dynamodb').batch_write_item(RequestItems=request_items)
-                
-                # Manejo de UnprocessedItems (reintentos)
-                unprocessed = response.get('UnprocessedItems', {})
-                retry_count = 0
-                while unprocessed and retry_count < 5:
-                    # Reintento con los items no procesados
-                    retry_count += 1
-                    response = boto3.client('dynamodb').batch_write_item(RequestItems=unprocessed)
-                    unprocessed = response.get('UnprocessedItems', {})
-                
-                total_deleted += len(chunk) - len(unprocessed.get(messages_table.name, []))
+            # Check if there might be more messages to delete
+            more_messages = len(all_messages) == limit
 
             return Response(
                 {
-                    "message": "All messages deleted successfully for phone_number.",
-                    "total_deleted": total_deleted,
-                    "phone_number": phone_number
+                    "message": "Messages deleted successfully.",
+                    "more_messages": more_messages  # Indicate if there might be more messages to delete
                 },
                 status=status.HTTP_200_OK
             )
 
         except Exception as e:
             return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
 class MessagesByPhoneNumberView(APIView):
