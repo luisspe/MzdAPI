@@ -405,7 +405,7 @@ class ClientEventsView(APIView):
 
 
 
- class DeleteMessagesByPhoneNumberView(APIView):
+class DeleteMessagesByPhoneNumberView(APIView):
     """
     View for deleting up to 50 messages related to a specific phone number.
     Supports:
