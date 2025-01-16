@@ -17,6 +17,11 @@ class ClientSerializer(serializers.Serializer):
     color_coche = serializers.CharField(max_length=30, required=False, allow_blank=True)  # Color del coche
     numero_catalogo = serializers.IntegerField(required=False)  # Número de catálogo
     fecha_cumpleanos = serializers.CharField(max_length=30, required=False, allow_null=True)  # Fecha de cumpleaños del cliente
+    unidades_de_interes = serializers.ListField(
+        child=serializers.CharField(max_length=50),  # Cada unidad es un string
+        required=False,
+        allow_empty=True,
+    )
     
 
     
