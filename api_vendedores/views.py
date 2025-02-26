@@ -70,7 +70,7 @@ class ListVendedoresView(APIView):
 
         # Configuración inicial para la consulta
         scan_kwargs = {
-            'Limit': 100  # Limitar a 100 registros por página, ajustar según sea necesario
+            'Limit': 300  # Limitar a 100 registros por página, ajustar según sea necesario
         }
 
         # Usar el token de paginación si se proporciona
