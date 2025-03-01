@@ -370,40 +370,34 @@ class ClientQueryByNameAPIView(APIView):
 class ClientEventsView(APIView):
     """
     Vista para listar todos los eventos asociados a un client_id específico.
-    Soporta:
-    - GET: Recupera eventos con paginación.
+    Se recuperan todos los eventos en batches y se devuelven en una sola respuesta.
     """
 
     def get(self, request, client_id):
-        # Recuperar token de paginación si se proporciona
-        last_evaluated_key = request.GET.get("last_evaluated_key")
-
+        # Lista para almacenar todos los eventos
+        all_events = []
+        
         # Configuración inicial de la consulta usando el índice "client_id-index"
         query_kwargs = {
             "IndexName": "client_id-index",
             "KeyConditionExpression": Key("client_id").eq(client_id),
-            "Limit": 100,  # Limita a 100 registros por página
+            # Puedes mantener o quitar el límite si lo deseas, ya que vamos a iterar hasta completar
+            "Limit": 100,
         }
+        
+        # Bucle para ir acumulando los resultados de cada batch
+        while True:
+            response = event_table.query(**query_kwargs)
+            all_events.extend(response.get("Items", []))
+            
+            # Verificar si existe más datos a través de LastEvaluatedKey
+            if "LastEvaluatedKey" in response:
+                query_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+            else:
+                break
 
-        # Si se proporciona un token de paginación, lo utilizamos
-        if last_evaluated_key:
-            query_kwargs["ExclusiveStartKey"] = {
-                "client_id": client_id,
-                "event_id": last_evaluated_key,
-            }
-
-        # Ejecutar la consulta paginada
-        response = event_table.query(**query_kwargs)
-
-        # Obtener token para la siguiente página (si existe)
-        next_page_token = response.get("LastEvaluatedKey", {}).get("event_id")
-
-        # Preparar los datos de respuesta
-        data = {
-            "events": response.get("Items", []),
-            "next_page_token": next_page_token,
-        }
-        return Response(data)
+        # Devolver todos los eventos en la respuesta
+        return Response({"events": all_events})
 
 
 class DeleteMessagesByPhoneNumberView(APIView):
