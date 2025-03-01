@@ -144,7 +144,7 @@ class ClientCreateAPiView(APIView):
         status_codes = {
             "ProvisionedThroughputExceededException": status.HTTP_503_SERVICE_UNAVAILABLE,
             "ResourceNotFoundException": status.HTTP_404_NOT_FOUND,
-            "ConditionalCheckFailedException": status.HTTP_400_BAD_REQUEST,
+            "ConditionalCheckFailedException": status.HTTP_400_BAD_REQUEST, 
             "ValidationException": status.HTTP_400_BAD_REQUEST,
         }
         status_code = status_codes.get(
@@ -366,43 +366,44 @@ class ClientQueryByNameAPIView(APIView):
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 # vista de eventos por client_id y session_id
+
 class ClientEventsView(APIView):
     """
-    View for listing all events associated with a specific client_id.
-    Supports:
-    - GET: Retrieve events with pagination.
+    Vista para listar todos los eventos asociados a un client_id específico.
+    Soporta:
+    - GET: Recupera eventos con paginación.
     """
 
     def get(self, request, client_id):
-        """Handles GET requests to retrieve events."""
-        # Fetch pagination token if provided
+        # Recuperar token de paginación si se proporciona
         last_evaluated_key = request.GET.get("last_evaluated_key")
 
-        # Initial configuration for the query
+        # Configuración inicial de la consulta usando el índice "client_id-index"
         query_kwargs = {
             "IndexName": "client_id-index",
             "KeyConditionExpression": Key("client_id").eq(client_id),
-            "Limit": 100,  # Limits to 100 records per page, adjust as needed
+            "Limit": 100,  # Limita a 100 registros por página
         }
 
-        # Use pagination token if available
+        # Si se proporciona un token de paginación, lo utilizamos
         if last_evaluated_key:
             query_kwargs["ExclusiveStartKey"] = {
                 "client_id": client_id,
                 "event_id": last_evaluated_key,
             }
 
-        # Execute paginated query
+        # Ejecutar la consulta paginada
         response = event_table.query(**query_kwargs)
 
-        # Fetch pagination token for the next page
+        # Obtener token para la siguiente página (si existe)
         next_page_token = response.get("LastEvaluatedKey", {}).get("event_id")
 
-        # Prepare response data
-        data = {"events": response.get("Items", []), "next_page_token": next_page_token}
-
+        # Preparar los datos de respuesta
+        data = {
+            "events": response.get("Items", []),
+            "next_page_token": next_page_token,
+        }
         return Response(data)
-
 
 
 class DeleteMessagesByPhoneNumberView(APIView):

@@ -94,6 +94,48 @@ class ListVendedoresView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+class ListVendedoresBySucursalView(APIView):
+    def get(self, request):
+        """
+        Maneja peticiones GET para listar vendedores filtrados por sucursal usando el índice "sucursal-index".
+
+        Parámetros de consulta:
+        - sucursal: Valor de la sucursal para filtrar (obligatorio).
+        - last_evaluated_key: Token para paginación (opcional).
+
+        Respuestas:
+        - 200 OK: Devuelve una página de vendedores junto con el token para la siguiente página.
+        - 400 Bad Request: Si no se proporciona el parámetro 'sucursal'.
+        - 500 Internal Server Error: Error inesperado en el servidor.
+        """
+        sucursal = request.GET.get('sucursal')
+        if not sucursal:
+            return Response({"error": "El parámetro 'sucursal' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        last_evaluated_key = request.GET.get('last_evaluated_key')
+        query_kwargs = {
+            'IndexName': 'sucursal-index',
+            'KeyConditionExpression': Key('sucursal').eq(sucursal),
+            'Limit': 300  # Ajusta este valor según tus necesidades
+        }
+        
+        if last_evaluated_key:
+            # Es importante que la llave de paginación incluya todos los atributos que conforman la clave primaria del índice.
+            query_kwargs['ExclusiveStartKey'] = {'vendedor_id': last_evaluated_key, 'sucursal': sucursal}
+
+        try:
+            response = vendedores_table.query(**query_kwargs)
+            next_page_token = response.get('LastEvaluatedKey')
+            data = {
+                'vendedores': response.get('Items', []),
+                'next_page_token': next_page_token
+            }
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VendedorCreateAPIView(APIView):
     def post(self, request):
