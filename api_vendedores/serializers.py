@@ -11,6 +11,7 @@ class VendedorSerializer(serializers.Serializer):
     estado = serializers.CharField(max_length=100)
     codigo_postal = serializers.CharField(max_length=10)
     sucursal = serializers.CharField(max_length=100)
+    activo = serializers.BooleanField(default=True)
 
     def create(self, validated_data):
         # Convierte el UUID a una cadena antes de crear el objeto
