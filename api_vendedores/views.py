@@ -6,18 +6,9 @@ from .serializers import VendedorSerializer  # Importa el serializer para el ven
 import boto3
 import json
 from boto3.dynamodb.conditions import Key
-from botocore.config import Config
 import os
-
-retry_config = Config(
-    region_name='us-east-1',
-    retries={
-        'max_attempts': 10,
-        'mode': 'adaptive'  # El modo adaptativo es más inteligente
-    }
-)
 # Configuración inicial de DynamoDB
-dynamodb = boto3.resource('dynamodb', config=retry_config)
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 
 client_table = dynamodb.Table(os.getenv('CLIENT_TABLE_NAME', 'clients_default'))
 event_table = dynamodb.Table(os.getenv('EVENT_TABLE_NAME', 'eventsv2_default'))

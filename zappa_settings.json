@@ -43,7 +43,7 @@
         "profile_name": "default",
         "project_name": "apimzd",
         "slim_handler": true,
-        "runtime": "python3.11",
+        "runtime": "python3.10",
         "s3_bucket": "zappa-production-bucket",
         "environment_variables": {
             "SECRET_KEY": "django-insecure-+@%*j@5#fvp6#a(z49q-h@sj-vs&vdz+fmu&^@vinj_drp1g39",
