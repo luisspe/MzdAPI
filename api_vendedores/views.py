@@ -4,6 +4,7 @@ from rest_framework import status
 from botocore.exceptions import ClientError
 from .serializers import VendedorSerializer  # Importa el serializer para el vendedor
 import boto3
+import json
 from boto3.dynamodb.conditions import Key
 import os
 # Configuración inicial de DynamoDB
