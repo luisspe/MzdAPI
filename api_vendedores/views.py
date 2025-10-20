@@ -56,42 +56,43 @@ class VendedorByIdAPIView(APIView):
 class ListVendedoresView(APIView):
     def get(self, request):
         """
-        Handles GET requests to list all vendedores with pagination.
-
-        Query Parameters:
-        - last_evaluated_key: The last vendedor ID from the previous page; used for pagination.
-
-        Responses:
-        - 200 OK: Returns a page of vendedores along with a token for the next page.
-        - 500 Internal Server Error: Unexpected server error.
+        Maneja peticiones GET para listar todos los vendedores usando un GSI (query).
         """
-        # Obtener el token de paginación si se proporciona
-        last_evaluated_key = request.GET.get('last_evaluated_key')
+        # 'last_evaluated_key' debe ser un string JSON enviado por el cliente
+        last_evaluated_key_str = request.GET.get('last_evaluated_key')
 
-        # Configuración inicial para la consulta
-        scan_kwargs = {
-            'Limit': 400  # Limitar a 100 registros por página, ajustar según sea necesario
+        query_kwargs = {
+            'IndexName': 'gsi_pk-nombre-index', # <-- Usa el nombre de tu nuevo índice
+            'KeyConditionExpression': Key('gsi_pk').eq('VENDEDORES'), # <-- Consulta por la llave estática
+            'Limit': 400
         }
 
-        # Usar el token de paginación si se proporciona
-        if last_evaluated_key:
-            scan_kwargs['ExclusiveStartKey'] = {'vendedor_id': last_evaluated_key}
+        # Manejo de paginación
+        if last_evaluated_key_str:
+            try:
+                # Convertir el string JSON de vuelta a un dict para DynamoDB
+                query_kwargs['ExclusiveStartKey'] = json.loads(last_evaluated_key_str)
+            except json.JSONDecodeError:
+                return Response({"error": "Formato de 'last_evaluated_key' inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Realizar un escaneo paginado en la tabla de vendedores
-            response = vendedores_table.scan(**scan_kwargs)
+            # --- CAMBIO DE SCAN A QUERY ---
+            response = vendedores_table.query(**query_kwargs)
 
-            # Obtener el token de paginación para la siguiente página
+            # 'LastEvaluatedKey' es un dict. El cliente debe guardarlo
+            # y enviarlo de vuelta (como string JSON) para la sig. página.
             next_page_token = response.get('LastEvaluatedKey')
 
-            # Preparar los datos de respuesta
             data = {
                 'vendedores': response.get('Items', []),
-                'next_page_token': next_page_token
+                'next_page_token': next_page_token # Devuelve el dict
             }
 
             return Response(data)
 
+        except ClientError as e:
+             # Captura errores de DynamoDB (ej. si el índice aún se está creando)
+            return Response({"error": e.response['Error']['Message']}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
